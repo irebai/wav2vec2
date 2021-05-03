@@ -3,7 +3,8 @@ import sys
 import json
 import os
 
-from module.args import set_args, set_checkpoint, set_loggers
+import module.args
+from module.args import set_args, set_checkpoint, set_loggers, set_seeds
 from module.data_prep import data_prep
 from module.trainer import DataCollatorCTCWithPadding, CTCTrainer
 
@@ -15,6 +16,9 @@ from transformers import (
 )
 import datasets
 import numpy as np
+
+
+
 
 def set_vocab(path):
     print("################### Prepare VOCAB ##################")
@@ -59,7 +63,7 @@ def main():
     model_args, data_args, training_args = set_args()
     set_loggers(training_args)
     last_checkpoint = set_checkpoint(training_args)
-    
+    set_seeds(training_args)
 
     # Load pretrained model and tokenizer
     #

@@ -7,8 +7,19 @@ from dataclasses import dataclass
 from transformers import Wav2Vec2Processor
 from typing import Any, Dict, List, Optional, Union
 from  transformers.trainer_pt_utils import get_parameter_names
-from transformers import Trainer
+from transformers import (
+    Trainer,
+    is_apex_available
+)
+from packaging import version
 
+if is_apex_available():
+    from apex import amp
+
+
+if version.parse(torch.__version__) >= version.parse("1.6"):
+    _is_native_amp_available = True
+    from torch.cuda.amp import autocast
 
 @dataclass
 class DataCollatorCTCWithPadding:

@@ -5,29 +5,16 @@ import sys
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 import torch
-from packaging import version
 
 import transformers
 from transformers import (
     HfArgumentParser,
     TrainingArguments,
-    is_apex_available,
     set_seed
 )
 from transformers.trainer_utils import get_last_checkpoint, is_main_process
 
-
-if is_apex_available():
-    from apex import amp
-
-
-if version.parse(torch.__version__) >= version.parse("1.6"):
-    _is_native_amp_available = True
-    from torch.cuda.amp import autocast
-
-
 logger = logging.getLogger(__name__)
-
 
 def list_field(default=None, metadata=None):
     return field(default_factory=lambda: default, metadata=metadata)
@@ -182,7 +169,7 @@ def set_loggers(training_args):
     '''
     
     
-def set_seed(training_args):
+def set_seeds(training_args):
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
