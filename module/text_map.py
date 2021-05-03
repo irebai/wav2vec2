@@ -2,7 +2,8 @@
 import re
 
 # Create and save tokenizer
-chars_to_ignore_regex = '[\,\?\.\!\;\:\"\“\%\‘\”\�\‘\’\’\’\‘\…\·\!\ǃ\?\«\‹\»\›“\”\\ʿ\ʾ\„\∞\\|\.\,\;\:\*\—\–\─\―\_\/\:\ː\;\,\=\«\»\→]'
+punctuation='[\,\?\.\!]'
+chars_to_ignore_regex = '[\;\:\"\“\%\‘\”\�\‘\’\’\’\‘\…\·\ǃ\«\‹\»\›“\”\\ʿ\ʾ\„\∞\\|\;\:\*\—\–\─\―\_\/\:\ː\;\=\«\»\→]'
 
 def collapse_whitespace(text):
     _whitespace_re = re.compile(r'\s+')
