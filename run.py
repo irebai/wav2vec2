@@ -8,6 +8,7 @@ from module.args import set_args, set_checkpoint, set_loggers, set_seeds
 from module.data_prep import data_prep
 from module.trainer import DataCollatorCTCWithPadding, CTCTrainer
 
+from transformers.trainer_utils import is_main_process
 from transformers import (
     Wav2Vec2CTCTokenizer,
     Wav2Vec2FeatureExtractor,
