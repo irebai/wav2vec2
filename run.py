@@ -25,7 +25,7 @@ def set_vocab(path):
     print("################### Prepare VOCAB ##################")
     # Prepare Vocab
     if not os.path.exists(path):
-        vocab_list = ['a','e','i','o','u','y','b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z','à','â','ç','è','é','ê','î','ô','ù','û','|','\'','-']
+        vocab_list = ['a','e','i','o','u','y','b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z','à','â','ç','è','é','ê','ë','î','ï','ô','ù','û','ü','ÿ','|','\'','-', '.', ',', '!', '?']
         vocab_dict = {v: k for k, v in enumerate(vocab_list)}
         vocab_dict["<unk>"] = len(vocab_dict)
         vocab_dict["<pad>"] = len(vocab_dict)
@@ -49,7 +49,6 @@ def main():
         '--learning_rate=3e-4', 
         '--warmup_steps=500', 
         '--fp16', 
-        '--overwrite_output_dir', 
         '--freeze_feature_extractor', 
         '--save_steps=100', 
         '--eval_steps=100', 
@@ -60,7 +59,8 @@ def main():
         '--gradient_checkpointing', 
         '--do_train', 
         '--do_eval']
-    
+        #'--overwrite_output_dir',
+
     model_args, data_args, training_args = set_args()
     set_loggers(training_args)
     last_checkpoint = set_checkpoint(training_args)
@@ -87,7 +87,7 @@ def main():
     processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
     
     
-    
+
     print("################### DATA PREPARATION ##################")
     train_dataset = data_prep(
         processor,
@@ -144,6 +144,9 @@ def main():
         pred_str = processor.batch_decode(pred_ids)
         # we do not want to group tokens when computing the metrics
         label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
+
+        print(pred_str)
+        print(label_str)
 
         wer = wer_metric.compute(predictions=pred_str, references=label_str)
 

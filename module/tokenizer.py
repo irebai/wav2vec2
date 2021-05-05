@@ -9,7 +9,7 @@ from itertools import groupby
 logger = logging.getLogger(__name__)
 
 
-class SPTokenizer(Wav2Vec2CTCTokenizer):
+class Wav2Vec2CTCTokenizer_SP(Wav2Vec2CTCTokenizer):
     def __init__(
         self,
         vocab_file,
