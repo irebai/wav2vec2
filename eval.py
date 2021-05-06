@@ -11,7 +11,7 @@ from module.trainer import DataCollatorCTCWithPadding, BatchRandomSampler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-model_dir="/workspace/output_models/fr/wav2vec2-large-xlsr-53/checkpoint-14700"
+model_dir="/workspace/output_models/fr/wav2vec2-large-xlsr-53"
 batch_size=32
 
 processor = Wav2Vec2Processor.from_pretrained(model_dir)
@@ -20,7 +20,6 @@ eval_dataset = data_prep(
     processor,
     'test',
     batch_size,
-    max_samples=100,
     num_workers=1
 )
 
@@ -52,5 +51,16 @@ for _data in tqdm(data):
     _data.labels[ _data.labels == -100] = processor.tokenizer.pad_token_id
     text.append(processor.batch_decode(_data.labels, group_tokens=False))
 
-print(trans)
-print(text)
+trans = [item for sublist in trans for item in sublist]
+text = [item for sublist in text for item in sublist]
+
+
+# Write output
+with open(model_dir+"/trans.txt", "w") as f:
+    for i, t in enumerate(trans):
+            f.write(str(i)+" "+t.strip()+"\n")
+
+# Write output
+with open(model_dir+"/text.txt", "w") as f:
+    for i, t in enumerate(text):
+            f.write(str(i)+" "+t.strip()+"\n")

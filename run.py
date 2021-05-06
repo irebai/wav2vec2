@@ -2,6 +2,7 @@
 import sys
 import json
 import os
+import logging
 
 import module.args
 from module.args import set_args, set_checkpoint, set_loggers, set_seeds
@@ -19,6 +20,7 @@ import datasets
 import numpy as np
 
 
+logger = logging.getLogger(__name__)
 
 
 def set_vocab(path):
@@ -144,10 +146,7 @@ def main():
         pred_str = processor.batch_decode(pred_ids)
         # we do not want to group tokens when computing the metrics
         label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
-
-        print(pred_str)
-        print(label_str)
-
+        
         wer = wer_metric.compute(predictions=pred_str, references=label_str)
 
         return {"wer": wer}
@@ -209,7 +208,7 @@ def main():
 
     return results
 
-        
+
 
 if __name__ == "__main__":
     main()

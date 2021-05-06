@@ -89,17 +89,18 @@ def data_prep(
     processor,
     split,
     batch_size,
-    max_samples,
+    max_samples=None,
     max_length=None,
     filter_and_sort_param='speech_len',
     path_dir="/workspace/output_models/data/fr",
-    num_workers=13):
+    num_workers=1):
 
     #load data
     data = load_data(split, save_dir=path_dir)
     
     #select subset
-    data = select_subset(data, max_samples)
+    if max_samples is not None:
+        data = select_subset(data, max_samples)
     
     #prepare speech (since it doesn't change)
     data = prepare_speech(data, num_workers=num_workers)
@@ -118,48 +119,3 @@ def data_prep(
     data = get_final_data(data, batch_size, processor, num_workers=num_workers)
     
     return data
-
-def speech_prep(
-    split,
-    batch_size,
-    max_samples,
-    path_dir="/workspace/output_models/data/fr",
-    max_length=None,
-    num_workers=13):
-
-    #load data
-    data = load_data(split, save_dir=path_dir)
-    
-
-def text_prep(
-    split,
-    max_samples=None,
-    path_dir="/workspace/output_models/data/fr",
-    ):
-
-    #load data
-    data = load_data(split, save_dir=path_dir)
-    
-    #select subset
-    if max_samples is not None:
-        data = select_subset(data, max_samples)
-    
-    #prepare text
-    data = prepare_text(data)
-    
-    
-def text_save(
-    split,
-    max_samples=None,
-    path_dir="/workspace/output_models/data/fr",
-    enumerate_text=True
-    ):
-    
-    #load data
-    data = text_prep(split, max_samples, path_dir)
-
-    #write text
-    with open("/workspace/output_models/text_asr", "w") as f:
-        for i, d in enumerate(data):
-            line = str(i)+" "+d['target_text'].strip()+"\n" if enumerate_text else t.strip()+"\n"
-            f.write(line)
