@@ -51,6 +51,7 @@ def main():
         '--learning_rate=3e-4', 
         '--warmup_steps=500', 
         '--fp16', 
+        '--overwrite_output_dir',
         '--freeze_feature_extractor', 
         '--save_steps=100', 
         '--eval_steps=100', 
@@ -61,7 +62,6 @@ def main():
         '--gradient_checkpointing', 
         '--do_train', 
         '--do_eval']
-        #'--overwrite_output_dir',
 
     model_args, data_args, training_args = set_args()
     set_loggers(training_args)
@@ -97,7 +97,7 @@ def main():
         training_args.per_device_train_batch_size,
         max_samples=30000,
         max_length=16000*15,
-        num_workers=13,
+        num_workers=1,
         path_dir="/workspace/output_models/data/fr"
     )
     
