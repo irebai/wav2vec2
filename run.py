@@ -23,17 +23,19 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-def set_vocab(path):
+def set_vocab(path, punctuation=False):
     print("################### Prepare VOCAB ##################")
     # Prepare Vocab
-    if not os.path.exists(path):
-        vocab_list = ['a','e','i','o','u','y','b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z','à','â','ç','è','é','ê','ë','î','ï','ô','ù','û','ü','ÿ','|','\'','-', '.', ',', '!', '?']
-        vocab_dict = {v: k for k, v in enumerate(vocab_list)}
-        vocab_dict["<unk>"] = len(vocab_dict)
-        vocab_dict["<pad>"] = len(vocab_dict)
+    vocab_list = ['a','e','i','o','u','y','b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z','à','â','æ','ç','è','é','ê','ë','î','ï','ô','œ','ù','û','ü','ÿ','|','\'','-']
+    if punctuation:
+        vocab_list += ['.',',','!','?']
 
-        with open(path, "w") as vocab_file:
-            json.dump(vocab_dict, vocab_file)
+    vocab_dict = {v: k for k, v in enumerate(vocab_list)}
+    vocab_dict["<unk>"] = len(vocab_dict)
+    vocab_dict["<pad>"] = len(vocab_dict)
+
+    with open(path, "w") as vocab_file:
+        json.dump(vocab_dict, vocab_file)
     
     
 
@@ -42,8 +44,8 @@ def main():
         'run.py',
         '--model_name_or_path=facebook/wav2vec2-large-xlsr-53',
         '--dataset_config_name=fr', 
-        '--output_dir=/workspace/output_models/fr/wav2vec2-large-xlsr-53', 
-        '--cache_dir=/workspace/data/fr', 
+        '--output_dir=/workspace/output_models/wav2vec2-large-xlsr-53', 
+        '--cache_dir=/workspace/data', 
         '--num_train_epochs=25', 
         '--per_device_train_batch_size=32', 
         '--per_device_eval_batch_size=32', 
@@ -98,7 +100,7 @@ def main():
         max_samples=30000,
         max_length=16000*15,
         num_workers=1,
-        path_dir="/workspace/output_models/data/fr"
+        path_dir="/workspace/output_models/data"
     )
     
     eval_dataset = data_prep(
@@ -106,7 +108,8 @@ def main():
         'test',
         training_args.per_device_eval_batch_size,
         max_samples=100,
-        num_workers=1
+        num_workers=1,
+        path_dir="/workspace/output_models/data"
     )
     
     

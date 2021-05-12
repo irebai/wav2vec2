@@ -3,7 +3,7 @@ import re
 
 # Create and save tokenizer
 punctuation='[\,\?\.\!]'
-chars_to_ignore_regex = '[\;\:\"\“\%\‘\”\�\‘\’\’\’\‘\…\·\ǃ\«\‹\»\›“\”\\ʿ\ʾ\„\∞\\|\;\:\*\—\–\─\―\_\/\:\ː\;\=\«\»\→]'
+chars_to_ignore_regex = '[\,\?\.\!\;\:\"\“\%\”\�\…\·\ǃ\«\‹\»\›“\”\ʿ\ʾ\„\∞\|\;\:\*\—\–\─\―\_\/\:\ː\;\=\«\»\→]'
 
 def collapse_whitespace(text):
     _whitespace_re = re.compile(r'\s+')
@@ -11,8 +11,6 @@ def collapse_whitespace(text):
 
 def normalize_text(text):
     text = text.lower().strip()
-    text = re.sub('œ', 'oe', text)
-    text = re.sub('æ', 'ae', text)
     text = re.sub('â', 'â', text)
     text = re.sub('à','à',text)
     text = re.sub('á','á',text)
@@ -29,7 +27,8 @@ def normalize_text(text):
     text = re.sub("'+ ", " ", text)
     text = re.sub(" '+", " ", text)
     text = re.sub("'$", " ", text)
-    
+    text = re.sub("' ", " ", text)
+
     text = re.sub("−|‐", "-", text)
     text = re.sub(" -", "", text)
     text = re.sub("- ", "", text)
@@ -37,8 +36,6 @@ def normalize_text(text):
 
     text = re.sub(chars_to_ignore_regex, ' ', text)
 
-    
-    text = re.sub("' ", " ", text)
     text = re.sub(' m\. ', ' monsieur ', text)
     text = re.sub(' mme\. ', ' madame ', text)
     text = re.sub(' mmes\. ', ' mesdames ', text)

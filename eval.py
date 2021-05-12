@@ -11,8 +11,11 @@ from module.trainer import DataCollatorCTCWithPadding, BatchRandomSampler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-model_dir="/workspace/output_models/fr/wav2vec2-large-xlsr-53"
+model_dir="/workspace/output_models/wav2vec2-large-xlsr-53"
 batch_size=32
+
+wer_metric = datasets.load_metric("wer")
+cer_metric = datasets.load_metric("cer")
 
 processor = Wav2Vec2Processor.from_pretrained(model_dir)
 
@@ -20,7 +23,8 @@ eval_dataset = data_prep(
     processor,
     'test',
     batch_size,
-    num_workers=1
+    num_workers=1,
+    path_dir="/workspace/output_models/data"
 )
 
 model = Wav2Vec2ForCTC.from_pretrained(model_dir)
@@ -38,6 +42,7 @@ data = DataLoader(
 )
 
 
+print("################### DECODE SPEECH DATASETS ##################")
 trans = []
 text = []
 for _data in tqdm(data):
@@ -64,3 +69,10 @@ with open(model_dir+"/trans.txt", "w") as f:
 with open(model_dir+"/text.txt", "w") as f:
     for i, t in enumerate(text):
             f.write(str(i)+" "+t.strip()+"\n")
+
+
+print('computer metrics')
+wer = wer_metric.compute(predictions=trans, references=text, chunk_size=1000)
+cer = cer_metric.compute(predictions=trans, references=text, chunk_size=1000)
+print("WER=", wer)
+print("CER=", cer)

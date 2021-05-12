@@ -70,7 +70,7 @@ def data_filter(dataset, param, max_len):
     return dataset.filter(fn)
 
 def data_sort(dataset, param):
-    print("################### FILTER DATASETS ##################")
+    print("################### SORT DATASETS ##################")
     return dataset.sort(column=param)
 
 def write_text(dataset, param, output="/workspace/output_models/text_asr"):

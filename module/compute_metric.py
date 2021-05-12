@@ -1,10 +1,10 @@
 import datasets
 import re
 
-model_dir="/workspace/output_models/fr/wav2vec2-large-xlsr-53"
+model_dir="/workspace/output_models/wav2vec2-large-xlsr-53"
 
-wer_metric = datasets.load_metric("wer.py")
-cer_metric = datasets.load_metric("cer.py")
+wer_metric = datasets.load_metric("wer")
+cer_metric = datasets.load_metric("cer")
 
 # Write output
 print('read transcription')
@@ -23,8 +23,8 @@ trans = [re.sub('!+', '!', t) for t in trans]
 trans = [re.sub(',+', ',', t) for t in trans]
 
 #Remove index
-text = [re.sub('^[^ ] ', '', t) for t in text]
-trans = [re.sub('^[^ ] ', '', t) for t in trans]
+text = [re.sub('^[^ ]* ', '', t) for t in text]
+trans = [re.sub('^[^ ]* ', '', t) for t in trans]
 
 
 print('computer WER')
