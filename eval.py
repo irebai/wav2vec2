@@ -10,6 +10,7 @@ import torch
 from module.trainer import DataCollatorCTCWithPadding, BatchRandomSampler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import datasets
 
 model_dir="/workspace/output_models/wav2vec2-large-xlsr-53"
 batch_size=32
@@ -63,12 +64,12 @@ text = [item for sublist in text for item in sublist]
 # Write output
 with open(model_dir+"/trans.txt", "w") as f:
     for i, t in enumerate(trans):
-            f.write(str(i)+" "+t.strip()+"\n")
+            f.write(t.strip()+"\n")
 
 # Write output
 with open(model_dir+"/text.txt", "w") as f:
     for i, t in enumerate(text):
-            f.write(str(i)+" "+t.strip()+"\n")
+            f.write(t.strip()+"\n")
 
 
 print('computer metrics')

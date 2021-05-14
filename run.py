@@ -8,7 +8,10 @@ import module.args
 from module.args import set_args, set_checkpoint, set_loggers, set_seeds
 from module.data_prep import data_prep
 from module.trainer import DataCollatorCTCWithPadding, CTCTrainer
-
+from module.tokenizer import (
+    Wav2Vec2CTCTokenizer_CHAR,
+    Wav2Vec2CTCTokenizer_SP,
+)
 from transformers.trainer_utils import is_main_process
 from transformers import (
     Wav2Vec2CTCTokenizer,
@@ -61,6 +64,7 @@ def main():
         '--logging_steps=100', 
         '--feat_proj_dropout=0.0', 
         '--layerdrop=0.1', 
+        '--tokenizer_type=sp',
         '--gradient_checkpointing', 
         '--do_train', 
         '--do_eval']
@@ -70,20 +74,23 @@ def main():
     last_checkpoint = set_checkpoint(training_args)
     set_seeds(training_args)
 
-    # Load pretrained model and tokenizer
-    #
-    # Distributed training:
-    # The .from_pretrained methods guarantee that only one local process can concurrently
-    # download model & vocab.
-    set_vocab(training_args.output_dir+"/vocab.json")
-    tokenizer = Wav2Vec2CTCTokenizer(
-        training_args.output_dir+"/vocab.json",
-        unk_token="<unk>",
-        pad_token="<pad>",
-        word_delimiter_token="|",
-    )
-    
-    
+    # Load tokenizer
+    if model_args.tokenizer_type == 'char':
+        tokenizer = Wav2Vec2CTCTokenizer_CHAR.set_vocab(
+            training_args.output_dir+"/vocab.json",
+            do_punctuation=False,
+        )
+    elif model_args.tokenizer_type == 'sp':
+        tokenizer = Wav2Vec2CTCTokenizer_SP.train_sentencepiece(
+            '/workspace/tokenizer/train.txt',
+            '/workspace/tokenizer/',
+            1000,
+            model_type="unigram",
+            pad_id=1,
+            unk_id=0
+        )
+    print(tokenizer.unk_token_id)
+    exit()
     # Prepare feature_extractor & processor
     feature_extractor = Wav2Vec2FeatureExtractor(
         feature_size=1, sampling_rate=16_000, padding_value=0.0, do_normalize=True, return_attention_mask=True

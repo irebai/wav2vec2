@@ -67,6 +67,12 @@ class ModelArguments:
         },
     )
     layerdrop: Optional[float] = field(default=0.0, metadata={"help": "The LayerDrop probability."})
+    tokenizer_type: str = field(
+        default='char',
+        metadata={
+            "help": "Tokenizer type: ['char', 'sp']"
+        },
+    )
 
 
 @dataclass

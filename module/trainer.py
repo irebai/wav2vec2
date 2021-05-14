@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional, Union
 from  transformers.trainer_pt_utils import get_parameter_names
 from transformers import (
     Trainer,
+    AdamW,
+    Adafactor,
     is_apex_available
 )
 from packaging import version
@@ -171,8 +173,39 @@ class CTCTrainer(Trainer):
             
             self.optimizer = torch.optim.SGD(optimizer_grouped_parameters, lr=self.args.learning_rate)
             
-    #def create_optimizer(self):
-    #    self.optimizer = ""
+    def create_optimizer(self):
+        if self.optimizer is None:
+            decay_parameters = get_parameter_names(self.model.wav2vec2, [torch.nn.LayerNorm])
+            decay_parameters = [name for name in decay_parameters if "bias" not in name]
+            optimizer_grouped_parameters = [
+                {
+                    "params": [p for n, p in self.model.wav2vec2.named_parameters() if n in decay_parameters],
+                    "weight_decay": self.args.weight_decay,
+                    "lr": self.args.learning_rate
+                },
+                {
+                    "params": [p for n, p in self.model.wav2vec2.named_parameters() if n not in decay_parameters],
+                    "weight_decay": 0.0,
+                    "lr": self.args.learning_rate
+                },
+                {
+                    "params": self.model.lm_head.parameters(),
+                    "weight_decay": 0.0
+                }
+            ]
+            optimizer_cls = Adafactor if self.args.adafactor else AdamW
+            if self.args.adafactor:
+                optimizer_cls = Adafactor
+                optimizer_kwargs = {"scale_parameter": False, "relative_step": False}
+            else:
+                optimizer_cls = AdamW
+                optimizer_kwargs = {
+                    "betas": (self.args.adam_beta1, self.args.adam_beta2),
+                    "eps": self.args.adam_epsilon,
+                }
+            optimizer_kwargs["lr"] = 1e-3
+            self.optimizer = optimizer_cls(optimizer_grouped_parameters, **optimizer_kwargs)
+
   
                 
     def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:

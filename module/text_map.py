@@ -2,14 +2,17 @@
 import re
 
 # Create and save tokenizer
-punctuation='[\,\?\.\!]'
-chars_to_ignore_regex = '[\,\?\.\!\;\:\"\“\%\”\�\…\·\ǃ\«\‹\»\›“\”\ʿ\ʾ\„\∞\|\;\:\*\—\–\─\―\_\/\:\ː\;\=\«\»\→]'
+punctuations_to_ignore_regex = '[\,\?\.\!]'
+chars_to_ignore_regex = '[\;\:\"\“\%\”\�\…\·\ǃ\«\‹\»\›“\”\ʿ\ʾ\„\∞\|\;\:\*\—\–\─\―\_\/\:\ː\;\=\«\»\→]'
 
 def collapse_whitespace(text):
     _whitespace_re = re.compile(r'\s+')
     return re.sub(_whitespace_re, ' ', text).strip()
 
-def normalize_text(text):
+def normalize_text(
+    text,
+    punctuation=False
+    ):
     text = text.lower().strip()
     text = re.sub('â', 'â', text)
     text = re.sub('à','à',text)
@@ -35,6 +38,8 @@ def normalize_text(text):
     text = re.sub("--+", " ", text)
 
     text = re.sub(chars_to_ignore_regex, ' ', text)
+    if not punctuation:
+        text = re.sub(punctuations_to_ignore_regex, ' ', text)
 
     text = re.sub(' m\. ', ' monsieur ', text)
     text = re.sub(' mme\. ', ' madame ', text)

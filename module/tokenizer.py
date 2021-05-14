@@ -134,10 +134,6 @@ class Wav2Vec2CTCTokenizer_SP(Wav2Vec2CTCTokenizer):
             unk_id = str(unk_id)
             split_by_whitespace = split_by_whitespace
 
-            """Train tokenizer with unsupervised techniques (BPE, Unigram) using
-            SentencePiece Library. If you use "char" mode, the SentencePiece
-            creates a char dict so the vocab_size attribute is not needed.
-            """
             query = (
                 "--input="
                 + text_file
@@ -166,12 +162,11 @@ class Wav2Vec2CTCTokenizer_SP(Wav2Vec2CTCTokenizer):
             if not split_by_whitespace:
                 query += " --split_by_whitespace=false"
             
-            
             # Train tokenizer
             spm.SentencePieceTrainer.train(query)
             
             # Save Train query
-            with open(prefix_model_file + ".query") as f:
+            with open(prefix_model_file + ".query", "w") as f:
                 f.write(query)
                 
             # Save special tokens
@@ -183,34 +178,58 @@ class Wav2Vec2CTCTokenizer_SP(Wav2Vec2CTCTokenizer):
             vocab_dict = {k: v for k, v in vocab_dict.items() if v != -1}
             with open(prefix_model_file+".tokens.json", "w") as vocab_file:
                 json.dump(vocab_dict, vocab_file)
-            
-            '''
-            with open(prefix_model_file + ".vocab") as f:
-                vocab_list = f.readlines()
 
-            vocab_dict = {v.split('\t')[0]: k for k, v in enumerate(vocab_list)}
-            with open(prefix_model_file+".json", "w") as vocab_file:
-                json.dump(vocab_dict, vocab_file)
-            '''
-            
         else:
             logger.info("Tokenizer is already trained.")
-        
-
-        # Save special tokens
-        vocab_dict = {}
-        vocab_dict[bos_token]=bos_id
-        vocab_dict[eos_token]=eos_id
-        vocab_dict[pad_token]=pad_id
-        vocab_dict[unk_token]=unk_id
-        vocab_dict = {k: v for k, v in vocab_dict.items() if v != -1}
-        with open(prefix_model_file+".tokens.json", "w") as vocab_file:
-            json.dump(vocab_dict, vocab_file)
-
-        
         
         return cls(
             prefix_model_file+".tokens.json",
             prefix_model_file + ".model",
             **kwargs
         )
+
+
+
+class Wav2Vec2CTCTokenizer_CHAR(Wav2Vec2CTCTokenizer):
+    @classmethod
+    def set_vocab(
+        cls,
+        vocab_file,
+        bos_token=None,
+        eos_token=None,
+        do_punctuation=False,
+        **kwargs
+    ):
+        print("################### Prepare VOCAB ##################")
+        # Prepare Vocab
+        word_delimiter_token = '|'
+        vocab_list = ['a','e','i','o','u','y','b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z']
+        vocab_list += ['à','â','æ','ç','è','é','ê','ë','î','ï','ô','œ','ù','û','ü','ÿ']
+        vocab_list += ["'",'-']
+        vocab_list += [word_delimiter_token]
+
+        if do_punctuation:
+            vocab_list += ['.',',','!','?']
+
+        vocab_dict = {v: k for k, v in enumerate(vocab_list)}
+        vocab_dict["<unk>"] = len(vocab_dict)
+        vocab_dict["<pad>"] = len(vocab_dict)
+        if bos_token is not None:
+            vocab_dict["<bos>"] = len(vocab_dict)
+        if eos_token is not None:
+            vocab_dict["<eos>"] = len(vocab_dict)
+
+        with open(vocab_file, "w") as file:
+            json.dump(vocab_dict, file)
+
+        return cls(
+            vocab_file,
+            bos_token=bos_token,
+            eos_token=eos_token,
+            unk_token="<unk>",
+            pad_token="<pad>",
+            word_delimiter_token="|",
+            do_lower_case=False,
+            **kwargs
+        )
+

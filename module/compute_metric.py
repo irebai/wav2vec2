@@ -22,11 +22,6 @@ trans = [re.sub('\?+', '?', t) for t in trans]
 trans = [re.sub('!+', '!', t) for t in trans]
 trans = [re.sub(',+', ',', t) for t in trans]
 
-#Remove index
-text = [re.sub('^[^ ]* ', '', t) for t in text]
-trans = [re.sub('^[^ ]* ', '', t) for t in trans]
-
-
 print('computer WER')
 wer = wer_metric.compute(predictions=trans, references=text, chunk_size=1000)
 cer = cer_metric.compute(predictions=trans, references=text, chunk_size=1000)

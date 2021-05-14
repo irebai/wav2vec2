@@ -119,3 +119,18 @@ def data_prep(
     data = get_final_data(data, batch_size, processor, num_workers=num_workers)
     
     return data
+
+def get_text(
+    split,
+    output_file,
+    path_dir="/workspace/output_models/data/fr"):
+
+    #load data
+    data = load_data(split, save_dir=path_dir)
+    
+    #prepare text
+    data = prepare_text(data)
+    
+    with open(output_file, "w") as f:
+        for text in data['target_text']:
+                f.write(text.strip()+"\n")
