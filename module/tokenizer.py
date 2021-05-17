@@ -1,13 +1,19 @@
 import sentencepiece as spm
 import logging
 import json
+import sys
 import os
 from typing import Any, Dict, List, Optional, Union
 from transformers import Wav2Vec2CTCTokenizer
 from itertools import groupby
 
 logger = logging.getLogger(__name__)
-
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+    datefmt="%m/%d/%Y %H:%M:%S",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger.setLevel(logging.INFO)
 
 class Wav2Vec2CTCTokenizer_SP(Wav2Vec2CTCTokenizer):
     def __init__(

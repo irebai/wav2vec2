@@ -12,35 +12,23 @@ from module.tokenizer import (
     Wav2Vec2CTCTokenizer_CHAR,
     Wav2Vec2CTCTokenizer_SP,
 )
+from module.model import Wav2Vec2ForCTC
 from transformers.trainer_utils import is_main_process
 from transformers import (
-    Wav2Vec2CTCTokenizer,
     Wav2Vec2FeatureExtractor,
     Wav2Vec2Processor,
-    Wav2Vec2ForCTC
 )
 import datasets
 import numpy as np
 
 
 logger = logging.getLogger(__name__)
-
-
-def set_vocab(path, punctuation=False):
-    print("################### Prepare VOCAB ##################")
-    # Prepare Vocab
-    vocab_list = ['a','e','i','o','u','y','b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z','à','â','æ','ç','è','é','ê','ë','î','ï','ô','œ','ù','û','ü','ÿ','|','\'','-']
-    if punctuation:
-        vocab_list += ['.',',','!','?']
-
-    vocab_dict = {v: k for k, v in enumerate(vocab_list)}
-    vocab_dict["<unk>"] = len(vocab_dict)
-    vocab_dict["<pad>"] = len(vocab_dict)
-
-    with open(path, "w") as vocab_file:
-        json.dump(vocab_dict, vocab_file)
-    
-    
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+    datefmt="%m/%d/%Y %H:%M:%S",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger.setLevel(logging.INFO)
 
 def main():
     sys.argv = [
@@ -48,15 +36,14 @@ def main():
         '--model_name_or_path=facebook/wav2vec2-large-xlsr-53',
         '--dataset_config_name=fr', 
         '--output_dir=/workspace/output_models/wav2vec2-large-xlsr-53', 
-        '--cache_dir=/workspace/data', 
-        '--num_train_epochs=25', 
+        '--cache_dir=/workspace/output_models/data',
+        '--num_train_epochs=30', 
         '--per_device_train_batch_size=32', 
         '--per_device_eval_batch_size=32', 
         '--evaluation_strategy=steps', 
         '--learning_rate=3e-4', 
         '--warmup_steps=500', 
         '--fp16', 
-        '--overwrite_output_dir',
         '--freeze_feature_extractor', 
         '--save_steps=100', 
         '--eval_steps=100', 
@@ -74,7 +61,11 @@ def main():
     last_checkpoint = set_checkpoint(training_args)
     set_seeds(training_args)
 
-    # Load tokenizer
+    if not os.path.exists(training_args.output_dir):
+        os.mkdir(training_args.output_dir)
+    
+    logger.info("################### PROCESSOR PREPARATION ##################")
+    # Prepare tokenizer
     if model_args.tokenizer_type == 'char':
         tokenizer = Wav2Vec2CTCTokenizer_CHAR.set_vocab(
             training_args.output_dir+"/vocab.json",
@@ -89,17 +80,18 @@ def main():
             pad_id=1,
             unk_id=0
         )
-    print(tokenizer.unk_token_id)
-    exit()
-    # Prepare feature_extractor & processor
+    else:
+        raise ValueError("tokenizer type must be either 'char' or 'sp'")
+    # Prepare feature_extractor
     feature_extractor = Wav2Vec2FeatureExtractor(
         feature_size=1, sampling_rate=16_000, padding_value=0.0, do_normalize=True, return_attention_mask=True
     )
+    # Prepare processor
     processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
     
     
 
-    print("################### DATA PREPARATION ##################")
+    logger.info("################### DATA PREPARATION ##################")
     train_dataset = data_prep(
         processor,
         'train+validation',
@@ -107,7 +99,7 @@ def main():
         max_samples=30000,
         max_length=16000*15,
         num_workers=1,
-        path_dir="/workspace/output_models/data"
+        path_dir=model_args.cache_dir
     )
     
     eval_dataset = data_prep(
@@ -116,12 +108,12 @@ def main():
         training_args.per_device_eval_batch_size,
         max_samples=100,
         num_workers=1,
-        path_dir="/workspace/output_models/data"
+        path_dir=model_args.cache_dir
     )
     
     
 
-    print("################### MODEL LOAD ##################")
+    logger.info("################### MODEL LOAD ##################")
     # Model load
     model = Wav2Vec2ForCTC.from_pretrained(
         'facebook/wav2vec2-large-xlsr-53',
@@ -137,6 +129,9 @@ def main():
         ctc_loss_reduction="mean",
         pad_token_id=processor.tokenizer.pad_token_id,
         vocab_size=len(processor.tokenizer),
+        tokenizer_type=model_args.tokenizer_type,
+        time_pooling_size=4,
+        pooling_type="max"
     )
     
     if model_args.freeze_feature_extractor:
@@ -165,7 +160,7 @@ def main():
     # Data collator
     data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
 
-    print("################### TRAINER LOAD ##################")
+    logger.info("################### TRAINER LOAD ##################")
     # Initialize our Trainer
     training_args.report_to=[]
     trainer = CTCTrainer(
