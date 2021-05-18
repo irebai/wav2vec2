@@ -5,7 +5,7 @@ import os
 import logging
 
 import module.args
-from module.args import set_args, set_checkpoint, set_loggers, set_seeds
+from module.args import set_args, set_checkpoint
 from module.data_prep import data_prep
 from module.trainer import DataCollatorCTCWithPadding, CTCTrainer
 from module.tokenizer import (
@@ -17,6 +17,7 @@ from transformers.trainer_utils import is_main_process
 from transformers import (
     Wav2Vec2FeatureExtractor,
     Wav2Vec2Processor,
+    set_seed
 )
 import datasets
 import numpy as np
@@ -37,7 +38,7 @@ def main():
         '--dataset_config_name=fr', 
         '--output_dir=/workspace/output_models/wav2vec2-large-xlsr-53', 
         '--cache_dir=/workspace/output_models/data',
-        '--num_train_epochs=30', 
+        '--num_train_epochs=25', 
         '--per_device_train_batch_size=32', 
         '--per_device_eval_batch_size=32', 
         '--evaluation_strategy=steps', 
@@ -57,16 +58,15 @@ def main():
         '--do_eval']
 
     model_args, data_args, training_args = set_args()
-    set_loggers(training_args)
     last_checkpoint = set_checkpoint(training_args)
-    set_seeds(training_args)
 
     if not os.path.exists(training_args.output_dir):
         os.mkdir(training_args.output_dir)
     
     logger.info("################### PROCESSOR PREPARATION ##################")
     # Prepare tokenizer
-    assert tokenizer_type in ["sp", "char"], "tokenizer type must be either 'sp' or 'char'."
+    assert model_args.tokenizer_type in ["sp", "char"], "tokenizer type must be either 'sp' or 'char'."
+
     if model_args.tokenizer_type == 'char':
         tokenizer = Wav2Vec2CTCTokenizer_CHAR.set_vocab(
             training_args.output_dir+"/vocab.json",
@@ -100,18 +100,16 @@ def main():
         max_length=16000*15,
         num_workers=1,
     )
-    
     eval_dataset = data_prep(
         processor,
         'test',
         training_args.per_device_eval_batch_size,
-        path_dir=model_args.cache_dir
+        path_dir=model_args.cache_dir,
         max_samples=100,
         num_workers=1,
     )
     
     
-
     logger.info("################### MODEL LOAD ##################")
     # Model load
     model = Wav2Vec2ForCTC.from_pretrained(
@@ -130,7 +128,7 @@ def main():
         vocab_size=len(processor.tokenizer),
         tokenizer_type=model_args.tokenizer_type,
         time_pooling_size=4,
-        pooling_type="max"
+        pooling_type="avg"
     )
     
     if model_args.freeze_feature_extractor:
@@ -162,6 +160,8 @@ def main():
     logger.info("################### TRAINER LOAD ##################")
     # Initialize our Trainer
     training_args.report_to=[]
+    # Set seed before initializing model.
+    set_seed(training_args.seed)
     trainer = CTCTrainer(
         model=model,
         data_collator=data_collator,

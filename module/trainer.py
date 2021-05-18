@@ -172,7 +172,8 @@ class CTCTrainer(Trainer):
 
             
             self.optimizer = torch.optim.SGD(optimizer_grouped_parameters, lr=self.args.learning_rate)
-            
+
+    '''   
     def create_optimizer(self):
         if self.optimizer is None:
             decay_parameters = get_parameter_names(self.model.wav2vec2, [torch.nn.LayerNorm])
@@ -205,7 +206,7 @@ class CTCTrainer(Trainer):
                 }
             optimizer_kwargs["lr"] = 1e-3
             self.optimizer = optimizer_cls(optimizer_grouped_parameters, **optimizer_kwargs)
-
+    '''
   
                 
     def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:

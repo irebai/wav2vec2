@@ -5,7 +5,8 @@ from torch import nn
 import transformers
 from transformers import (
     Wav2Vec2ForCTC,
-    Wav2Vec2Model
+    Wav2Vec2Model,
+    Wav2Vec2Config
 )
 from transformers.modeling_outputs import CausalLMOutput
 from transformers.activations import ACT2FN
@@ -60,7 +61,19 @@ class Pooling1d(nn.Module):
         return x
 
 
+class Wav2Vec2Config(Wav2Vec2Config):
+    def __init__(
+        self,
+        **kwargs
+    ):
+        self.tokenizer_type = kwargs.pop('tokenizer_type', 'char')
+        self.time_pooling_size = kwargs.pop('time_pooling_size', 1)
+        self.pooling_type = kwargs.pop('pooling_type', None)
+        super().__init__(**kwargs)
+
+
 class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
+    config_class = Wav2Vec2Config
     def __init__(self, config, **kwargs):
         super().__init__(config)
         self.time_pooling_size = kwargs.pop("time_pooling_size", 4)

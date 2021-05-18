@@ -9,12 +9,18 @@ import torch
 import transformers
 from transformers import (
     HfArgumentParser,
-    TrainingArguments,
-    set_seed
+    TrainingArguments
 )
 from transformers.trainer_utils import get_last_checkpoint, is_main_process
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+    datefmt="%m/%d/%Y %H:%M:%S",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger.setLevel(logging.INFO)
+
 
 def list_field(default=None, metadata=None):
     return field(default_factory=lambda: default, metadata=metadata)
@@ -122,7 +128,7 @@ class DataTrainingArguments:
 
     
 def set_args():
-    print("################### SETUP ARGUMENT ##################")
+    logger.info("Setup arguments")
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
@@ -130,11 +136,21 @@ def set_args():
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-        
+    
+    # Log on each process the small summary:
+    logger.warning(
+        f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}"
+        + f"distributed training: {bool(training_args.local_rank != -1)}, 16-bits training: {training_args.fp16}"
+    )
+    # Set the verbosity to info of the Transformers logger (on main process only):
+    if is_main_process(training_args.local_rank):
+        transformers.utils.logging.set_verbosity_info()
+    logger.info("Training/evaluation parameters %s", training_args)
+
     return model_args, data_args, training_args
 
 def set_checkpoint(training_args):
-    print("################### CHECKPOINT ##################")
+    logger.info("Load checkpoint")
     # Detecting last checkpoint.
     last_checkpoint = None
     if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
@@ -150,29 +166,3 @@ def set_checkpoint(training_args):
                 "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
             )
     return last_checkpoint
-
-def set_loggers(training_args):
-    print("################### SETUP LOGGING ##################")
-    # Setup logging
-    logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
-        datefmt="%m/%d/%Y %H:%M:%S",
-        handlers=[logging.StreamHandler(sys.stdout)],
-    )
-    logger.setLevel(logging.INFO if is_main_process(training_args.local_rank) else logging.WARN)
-
-    # Log on each process the small summary:
-    logger.warning(
-        f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}"
-        + f"distributed training: {bool(training_args.local_rank != -1)}, 16-bits training: {training_args.fp16}"
-    )
-    # Set the verbosity to info of the Transformers logger (on main process only):
-    if is_main_process(training_args.local_rank):
-        transformers.utils.logging.set_verbosity_info()
-    logger.info("Training/evaluation parameters %s", training_args)
-    
-    
-def set_seeds(training_args):
-    # Set seed before initializing model.
-    set_seed(training_args.seed)
-
