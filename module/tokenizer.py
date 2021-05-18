@@ -46,7 +46,7 @@ class Wav2Vec2CTCTokenizer_SP(Wav2Vec2CTCTokenizer):
         if not os.path.isfile(model_file):
             raise ValueError("Tokenizer is not found!")
 
-        logger.info("==== Loading Tokenizer ===")
+        logger.info("Loading Tokenizer")
         self.sp = spm.SentencePieceProcessor()
         self.sp.load(model_file)
 

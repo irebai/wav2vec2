@@ -23,28 +23,22 @@ def speech_file_to_array_fn(batch):
     batch["speech_len"] = len(batch["speech"])
     return batch
 
-def load_data(data, save_dir="/workspace/output_models/data/fr"):  
-    # Get the datasets:
-    print("################### LOAD DATASETS ##################")
+def load_data(data, save_dir):  
     return datasets.load_dataset("common_voice", "fr", split=data, cache_dir=save_dir)
 
 def prepare_text(dataset):
-    print("################### PREPARE TEXT DATASETS ##################")
     return dataset.map(remove_special_characters, remove_columns=["sentence"])
 
 def select_subset(dataset, nb_samples):
-    print("################### SELECT SUBSETS FROM DATASETS ##################")
     return dataset.select(range(nb_samples))
 
 def prepare_speech(dataset, num_workers=None):
-    print("################### GET SPEECH DATASETS ##################")
     return dataset.map(
         speech_file_to_array_fn,
         num_proc=multiprocessing.cpu_count() if num_workers == None else num_workers,
     )
 
 def get_final_data(dataset, batch_size, processor, num_workers=None):
-    print("################### GET INPUT & LABEL DATASETS ##################")
     def prepare_dataset(batch):
         # check that all files have the correct sampling rate
         assert (
@@ -65,23 +59,19 @@ def get_final_data(dataset, batch_size, processor, num_workers=None):
     )
 
 def data_filter(dataset, param, max_len):
-    print("################### FILTER DATASETS ##################")
     fn = lambda data: (data[param] < max_len)
     return dataset.filter(fn)
 
 def data_sort(dataset, param):
-    print("################### SORT DATASETS ##################")
     return dataset.sort(column=param)
 
-def write_text(dataset, param, output="/workspace/output_models/text_asr"):
-    print("################### WRITE TEXT ##################")
+def write_text(dataset, param, output):
     text = [data[param] for data in dataset]
     with open(output, "w") as f:
         for i, t in enumerate(text):
              f.write(str(i)+" "+t.strip()+"\n")
 
 def datasets_concat(dataset1, dataset2):
-    print("################### CONCAT TRAIN DATASETS ##################")
     return datasets.concatenate_datasets([dataset1, dataset2])
 
 
@@ -89,10 +79,10 @@ def data_prep(
     processor,
     split,
     batch_size,
+    path_dir,
     max_samples=None,
     max_length=None,
     filter_and_sort_param='speech_len',
-    path_dir="/workspace/output_models/data/fr",
     num_workers=1):
 
     #load data
@@ -123,7 +113,7 @@ def data_prep(
 def get_text(
     split,
     output_file,
-    path_dir="/workspace/output_models/data/fr"):
+    path_dir):
 
     #load data
     data = load_data(split, save_dir=path_dir)

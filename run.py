@@ -66,6 +66,7 @@ def main():
     
     logger.info("################### PROCESSOR PREPARATION ##################")
     # Prepare tokenizer
+    assert tokenizer_type in ["sp", "char"], "tokenizer type must be either 'sp' or 'char'."
     if model_args.tokenizer_type == 'char':
         tokenizer = Wav2Vec2CTCTokenizer_CHAR.set_vocab(
             training_args.output_dir+"/vocab.json",
@@ -80,8 +81,6 @@ def main():
             pad_id=1,
             unk_id=0
         )
-    else:
-        raise ValueError("tokenizer type must be either 'char' or 'sp'")
     # Prepare feature_extractor
     feature_extractor = Wav2Vec2FeatureExtractor(
         feature_size=1, sampling_rate=16_000, padding_value=0.0, do_normalize=True, return_attention_mask=True
@@ -96,19 +95,19 @@ def main():
         processor,
         'train+validation',
         training_args.per_device_train_batch_size,
+        path_dir=model_args.cache_dir,
         max_samples=30000,
         max_length=16000*15,
         num_workers=1,
-        path_dir=model_args.cache_dir
     )
     
     eval_dataset = data_prep(
         processor,
         'test',
         training_args.per_device_eval_batch_size,
+        path_dir=model_args.cache_dir
         max_samples=100,
         num_workers=1,
-        path_dir=model_args.cache_dir
     )
     
     

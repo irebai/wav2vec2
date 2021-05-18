@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 from module.data_prep import data_prep
-from transformers import (
-    Wav2Vec2Processor,
-    Wav2Vec2ForCTC
-)
-from module.processor import Wav2Vec2Processor_SP
+from module.processor import Wav2Vec2Processor
+from module.model import Wav2Vec2ForCTC
 from module.args import set_loggers
 
 import torch
@@ -33,16 +30,10 @@ logger.setLevel(logging.INFO)
 def get_data(
     split,
     processor,
-    batch_size=1,
-    data_path="/workspace/output_models/data"
-):
-    dataset = data_prep(
-        processor,
-        split,
-        batch_size,
-        num_workers=1,
-        path_dir=data_path
-    )
+    data_path,
+    batch_size=1):
+
+    dataset = data_prep(processor, split, batch_size, data_path, num_workers=1)
     data_sampler = BatchRandomSampler(dataset, batch_size)
     data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
 
@@ -55,8 +46,7 @@ def get_data(
 
 def write_result(
     data,
-    file_path
-):
+    file_path):
     with open(file_path, "w") as f:
         for line in data:
             f.write(line.strip()+"\n")
@@ -66,19 +56,14 @@ def main(
     batch_size,
     tokenizer,
     data_path,
-    data_split
-):
+    data_split):
 
     if (not os.path.exists(model_dir+"/text.txt")) or (not os.path.exists(model_dir+"/trans.txt")):
         logger.info("################### LOAD PROCESSOR ##################")
-        if tokenizer == 'char':
-            processor = Wav2Vec2Processor.from_pretrained(model_dir)
-        elif tokenizer == 'sp':
-            processor = Wav2Vec2Processor_SP.from_pretrained(model_dir, model_file=model_dir+'/1000_unigram.model')
-        else:
-            raise ValueError("tokenizer type must be either 'char' or 'sp'")
+        processor = Wav2Vec2Processor.from_pretrained(model_dir, tokenizer_type=tokenizer)
 
-        eval_dataset = get_data(data_split, processor, batch_size, data_path="/workspace/output_models/data")
+        logger.info("################### LOAD DATASETS ##################")
+        eval_dataset = get_data(data_split, processor, "/workspace/output_models/data", batch_size=batch_size)
 
         logger.info("################### LOAD MODEL ##################")
         model = Wav2Vec2ForCTC.from_pretrained(model_dir)
@@ -100,7 +85,7 @@ def main(
         trans = [item for sublist in trans for item in sublist]
         text = [item for sublist in text for item in sublist]
         write_result(text, model_dir+"/text.txt")
-        write_result(text, model_dir+"/trans.txt")
+        write_result(trans, model_dir+"/trans.txt")
     else:
         logger.info('Decode is already performed!')
         with open(model_dir+"/trans.txt") as f:
@@ -142,6 +127,8 @@ if __name__ == "__main__":
         help='batch size',
         default=32)
     eval_args = parser.parse_args()
+
+    assert eval_args.tokenizer in ["sp", "char"], "tokenizer type must be either 'sp' or 'char'."
 
     logger.info("Evaluation parameters %s", eval_args)
 
