@@ -22,6 +22,7 @@ class Pooling1d(nn.Module):
         stride=None,
     ):
         super().__init__()
+        self.time_pooling_size = kernel_size
 
         if stride is None:
             stride = kernel_size
@@ -44,6 +45,9 @@ class Pooling1d(nn.Module):
             )
 
     def forward(self, x):
+        if self.time_pooling_size == 1:
+            return x
+
         # Put the pooling axes as the last dimension for torch.nn.pool
         x = x.transpose(-1, 1)
 
@@ -59,9 +63,10 @@ class Pooling1d(nn.Module):
 class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
     def __init__(self, config, **kwargs):
         super().__init__(config)
-        self.tokenizer_type = kwargs.pop("tokenizer_type", 'char')
         self.time_pooling_size = kwargs.pop("time_pooling_size", 4)
         self.pooling_type = kwargs.pop("pooling_type", 'max')
+
+        assert self.time_pooling_size > 0, "time_pooling_size must be greater than 0"
 
         self.wav2vec2 = Wav2Vec2Model(config)
 
@@ -102,10 +107,7 @@ class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
         )
 
         hidden_states = outputs[0]
-
-        if self.tokenizer_type == 'sp':
-            hidden_states = self.pooling(hidden_states)
-
+        hidden_states = self.pooling(hidden_states)
         hidden_states = self.dropout(hidden_states)
 
         logits = self.lm_head(hidden_states)
@@ -118,7 +120,7 @@ class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
                 attention_mask if attention_mask is not None else torch.ones_like(input_values, dtype=torch.long)
             )
             input_lengths = self._get_feat_extract_output_lengths(attention_mask.sum(-1))
-            if self.tokenizer_type == 'sp':
+            if self.time_pooling_size > 1:
                 input_lengths = input_lengths // self.time_pooling_size
 
             # assuming that padded tokens are filled with -100

@@ -66,7 +66,8 @@ def main(
         eval_dataset = get_data(data_split, processor, "/workspace/output_models/data", batch_size=batch_size)
 
         logger.info("################### LOAD MODEL ##################")
-        model = Wav2Vec2ForCTC.from_pretrained(model_dir)
+        kwargs = {'time_pooling_size':4, 'pooling_type':"max"}
+        model = Wav2Vec2ForCTC.from_pretrained(model_dir, **kwargs)
         model = model.to('cuda')
 
         logger.info("################### DECODE SPEECH DATASETS ##################")
