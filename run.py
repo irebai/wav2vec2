@@ -52,7 +52,7 @@ def main():
         '--logging_steps=100', 
         '--feat_proj_dropout=0.0', 
         '--layerdrop=0.1', 
-        '--tokenizer_type=sp',
+        '--tokenizer_type=char',
         '--gradient_checkpointing', 
         '--do_train', 
         '--do_eval']
@@ -62,7 +62,12 @@ def main():
 
     if not os.path.exists(training_args.output_dir):
         os.mkdir(training_args.output_dir)
-    
+
+    # Vocab list
+    vocab_list = ['a','e','i','o','u','y','b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z']
+    vocab_list += ['à','â','æ','ç','è','é','ê','ë','î','ï','ô','œ','ù','û','ü','ÿ']
+    vocab_list += [' ',"'",'-']
+
     logger.info("################### PROCESSOR PREPARATION ##################")
     # Prepare tokenizer
     assert model_args.tokenizer_type in ["sp", "char"], "tokenizer type must be either 'sp' or 'char'."
@@ -70,25 +75,25 @@ def main():
     if model_args.tokenizer_type == 'char':
         tokenizer = Wav2Vec2CTCTokenizer_CHAR.set_vocab(
             training_args.output_dir+"/vocab.json",
+            vocab=vocab_list,
             do_punctuation=False,
         )
     elif model_args.tokenizer_type == 'sp':
         tokenizer = Wav2Vec2CTCTokenizer_SP.train_sentencepiece(
-            '/workspace/tokenizer/train.txt',
-            '/workspace/tokenizer/',
+            '/workspace/train.txt',
+            '/workspace/tokenizer_new/',
             1000,
             model_type="unigram",
             pad_id=1,
-            unk_id=0
+            unk_id=0,
+            vocab=vocab_list
         )
     # Prepare feature_extractor
     feature_extractor = Wav2Vec2FeatureExtractor(
         feature_size=1, sampling_rate=16_000, padding_value=0.0, do_normalize=True, return_attention_mask=True
     )
     # Prepare processor
-    processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
-    
-    
+    processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)    
 
     logger.info("################### DATA PREPARATION ##################")
     train_dataset = data_prep(
@@ -96,9 +101,10 @@ def main():
         'train+validation',
         training_args.per_device_train_batch_size,
         path_dir=model_args.cache_dir,
-        max_samples=30000,
+        max_samples=100000,
         max_length=16000*15,
         num_workers=1,
+        vocab=vocab_list
     )
     eval_dataset = data_prep(
         processor,
@@ -109,6 +115,7 @@ def main():
         num_workers=1,
     )
     
+    exit()
     
     logger.info("################### MODEL LOAD ##################")
     # Model load
@@ -128,7 +135,7 @@ def main():
         vocab_size=len(processor.tokenizer),
         tokenizer_type=model_args.tokenizer_type,
         time_pooling_size=4,
-        pooling_type="avg"
+        pooling_type="max"
     )
     
     if model_args.freeze_feature_extractor:

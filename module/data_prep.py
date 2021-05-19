@@ -5,6 +5,17 @@ import json
 import datasets
 import os
 import multiprocessing
+import re
+import logging
+import sys
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+    datefmt="%m/%d/%Y %H:%M:%S",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger.setLevel(logging.INFO)
 
 
 # Create and save tokenizer
@@ -23,22 +34,27 @@ def speech_file_to_array_fn(batch):
     batch["speech_len"] = len(batch["speech"])
     return batch
 
-def load_data(data, save_dir):  
+def load_data(data, save_dir):
+    logger.info('load data')
     return datasets.load_dataset("common_voice", "fr", split=data, cache_dir=save_dir)
 
-def prepare_text(dataset):
-    return dataset.map(remove_special_characters, remove_columns=["sentence"])
+def prepare_text(dataset, cache_file_name=None):
+    logger.info('prepare text')
+    return dataset.map(remove_special_characters, remove_columns=["sentence"], cache_file_name=cache_file_name)
 
 def select_subset(dataset, nb_samples):
     return dataset.select(range(nb_samples))
 
-def prepare_speech(dataset, num_workers=None):
+def prepare_speech(dataset, num_workers=None, cache_file_name=None):
+    logger.info('prepare speech')
     return dataset.map(
         speech_file_to_array_fn,
         num_proc=multiprocessing.cpu_count() if num_workers == None else num_workers,
+        cache_file_name=cache_file_name
     )
 
-def get_final_data(dataset, batch_size, processor, num_workers=None):
+def get_final_data(dataset, batch_size, processor, num_workers=None, cache_file_name=None):
+    logger.info('prepare final data')
     def prepare_dataset(batch):
         # check that all files have the correct sampling rate
         assert (
@@ -56,14 +72,53 @@ def get_final_data(dataset, batch_size, processor, num_workers=None):
         batch_size=batch_size,
         batched=True,
         num_proc=multiprocessing.cpu_count() if num_workers == None else num_workers,
+        cache_file_name=cache_file_name
     )
 
-def data_filter(dataset, param, max_len):
-    fn = lambda data: (data[param] < max_len)
-    return dataset.filter(fn)
+def get_final_data_mix(dataset, batch_size, processor_char, processor_bpe, num_workers=None, cache_file_name=None):
+    def prepare_dataset(batch):
+        # check that all files have the correct sampling rate
+        assert (
+            len(set(batch["sampling_rate"])) == 1
+        ), f"Make sure all inputs have the same sampling rate of {processor_bpe.feature_extractor.sampling_rate}."
+        batch["input_values"] = processor_bpe(batch["speech"], sampling_rate=batch["sampling_rate"][0]).input_values
+        # Setup the processor for targets
+        with processor_bpe.as_target_processor():
+            batch["labels"] = processor_bpe(batch["target_text"]).input_ids
+        with processor_char.as_target_processor():
+            batch["labels_char"] = processor_char(batch["target_text"]).input_ids
+        return batch
 
-def data_sort(dataset, param):
-    return dataset.sort(column=param)
+    return dataset.map(
+        prepare_dataset,
+        remove_columns=dataset.column_names,
+        batch_size=batch_size,
+        batched=True,
+        num_proc=multiprocessing.cpu_count() if num_workers == None else num_workers,
+        cache_file_name=cache_file_name
+    )
+
+def data_filter(dataset, param, max_len, batch_size, cache_file_name=None):
+    logger.info('filter speech')
+    fn = lambda data: (data[param] < max_len)
+    return dataset.filter(
+        fn,
+        batch_size=batch_size,
+        cache_file_name=cache_file_name
+    )
+
+def data_filter_text(dataset, vocab, batch_size, cache_file_name=None):
+    logger.info('filter text')
+    vocab_regex = f"[{re.escape(''.join(vocab))}]"
+    fn = lambda data: (len(re.sub(vocab_regex, '', data['target_text'].strip())) == 0)
+    return dataset.filter(
+        fn,
+        batch_size=batch_size,
+        cache_file_name=cache_file_name
+    )
+
+def data_sort(dataset, param, indices_cache_file_name=None):
+    return dataset.sort(column=param, indices_cache_file_name=indices_cache_file_name)
 
 def write_text(dataset, param, output):
     text = [data[param] for data in dataset]
@@ -83,7 +138,15 @@ def data_prep(
     max_samples=None,
     max_length=None,
     filter_and_sort_param='speech_len',
-    num_workers=1):
+    num_workers=1,
+    vocab=None,
+    set_name=True,
+    ):
+
+
+    if not os.path.exists(path_dir + '/cache_files'):
+        os.mkdir(path_dir + '/cache_files')
+    cache_file_name = path_dir + '/cache_files/' + 'data_' + split
 
     #load data
     data = load_data(split, save_dir=path_dir)
@@ -91,22 +154,33 @@ def data_prep(
     #select subset
     if max_samples is not None:
         data = select_subset(data, max_samples)
+        cache_file_name += '_' + str(max_samples) + '-samples'
     
     #prepare speech (since it doesn't change)
-    data = prepare_speech(data, num_workers=num_workers)
+    name = cache_file_name + '_speech.arrow' if set_name else None
+    data = prepare_speech(data, num_workers=num_workers, cache_file_name=name)
     
     #prepare text
-    data = prepare_text(data)
+    name = cache_file_name + '_text.arrow' if set_name else None
+    data = prepare_text(data, cache_file_name=name)
+    
+    #filter data based on text
+    if vocab is not None:
+        name = cache_file_name + '_filtered_text.arrow' if set_name else None
+        data = data_filter_text(data, vocab, batch_size, cache_file_name=name)
     
     #filter speech
     if max_length is not None:
-        data = data_filter(data, filter_and_sort_param, max_length)
+        name = cache_file_name + '_filtered_speech.arrow' if set_name else None
+        data = data_filter(data, filter_and_sort_param, max_length, batch_size, cache_file_name=name)
     
     #sort speech
-    data = data_sort(data, filter_and_sort_param)
+    name = cache_file_name + '_sorted_speech.arrow' if set_name else None
+    data = data_sort(data, filter_and_sort_param, indices_cache_file_name=name)
     
     #get supervised data
-    data = get_final_data(data, batch_size, processor, num_workers=num_workers)
+    name = cache_file_name + '_final_data.arrow' if set_name else None
+    data = get_final_data(data, batch_size, processor, num_workers=num_workers, cache_file_name=name)
     
     return data
 

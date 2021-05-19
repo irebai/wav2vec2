@@ -2,7 +2,6 @@
 from module.data_prep import data_prep
 from module.processor import Wav2Vec2Processor
 from module.model import Wav2Vec2ForCTC
-from module.args import set_loggers
 
 import torch
 from module.trainer import DataCollatorCTCWithPadding, BatchRandomSampler

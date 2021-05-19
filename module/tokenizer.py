@@ -3,6 +3,7 @@ import logging
 import json
 import sys
 import os
+import re
 from typing import Any, Dict, List, Optional, Union
 from transformers import Wav2Vec2CTCTokenizer
 from itertools import groupby
@@ -96,7 +97,7 @@ class Wav2Vec2CTCTokenizer_SP(Wav2Vec2CTCTokenizer):
     @classmethod
     def train_sentencepiece(
         cls,
-        text_file,
+        train_file,
         model_dir,
         vocab_size,
         model_type="unigram",
@@ -108,6 +109,7 @@ class Wav2Vec2CTCTokenizer_SP(Wav2Vec2CTCTokenizer):
         pad_id=-1,
         unk_id=0,
         split_by_whitespace=True,
+        vocab=None,
         **kwargs
     ):
         # Special tokens
@@ -131,6 +133,21 @@ class Wav2Vec2CTCTokenizer_SP(Wav2Vec2CTCTokenizer):
         if not os.path.isfile(prefix_model_file + ".model"):
             logger.info("Train tokenizer with type:" + model_type)
 
+            if vocab is not None:
+                logger.info("Clean train data using the specified vocab: ["+' '.join(vocab)+"]")
+                vocab_regex = f"[{re.escape(''.join(vocab))}]"
+
+                with open(train_file) as f:
+                    corpus = f.readlines()
+                
+                lines = []
+                with open(prefix_model_file + '.txt', 'w') as f:
+                    for text in corpus:
+                        line = re.sub(vocab_regex, '', text.strip())
+                        if len(line) == 0:
+                            f.write(text)
+                train_file = prefix_model_file + '.txt'
+
             vocab_size = str(vocab_size)
             character_coverage = str(character_coverage)
             max_sentencepiece_length = str(max_sentencepiece_length)
@@ -142,7 +159,7 @@ class Wav2Vec2CTCTokenizer_SP(Wav2Vec2CTCTokenizer):
 
             query = (
                 "--input="
-                + text_file
+                + train_file
                 + " --model_prefix="
                 + prefix_model_file
                 + " --model_type="
@@ -201,6 +218,7 @@ class Wav2Vec2CTCTokenizer_CHAR(Wav2Vec2CTCTokenizer):
     def set_vocab(
         cls,
         vocab_file,
+        vocab_list,
         bos_token=None,
         eos_token=None,
         do_punctuation=False,
@@ -209,9 +227,7 @@ class Wav2Vec2CTCTokenizer_CHAR(Wav2Vec2CTCTokenizer):
         print("################### Prepare VOCAB ##################")
         # Prepare Vocab
         word_delimiter_token = '|'
-        vocab_list = ['a','e','i','o','u','y','b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z']
-        vocab_list += ['à','â','æ','ç','è','é','ê','ë','î','ï','ô','œ','ù','û','ü','ÿ']
-        vocab_list += ["'",'-']
+        vocab_list.remove(' ') # remove space and replace it by word_delimiter_token
         vocab_list += [word_delimiter_token]
 
         if do_punctuation:
