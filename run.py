@@ -45,6 +45,7 @@ def main():
         '--learning_rate=3e-4', 
         '--warmup_steps=500', 
         '--fp16', 
+        '--overwrite_output_dir',
         '--freeze_feature_extractor', 
         '--save_steps=100', 
         '--eval_steps=100', 
@@ -75,7 +76,7 @@ def main():
     if model_args.tokenizer_type == 'char':
         tokenizer = Wav2Vec2CTCTokenizer_CHAR.set_vocab(
             training_args.output_dir+"/vocab.json",
-            vocab=vocab_list,
+            vocab_list,
             do_punctuation=False,
         )
     elif model_args.tokenizer_type == 'sp':

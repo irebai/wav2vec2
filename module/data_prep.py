@@ -140,9 +140,8 @@ def data_prep(
     filter_and_sort_param='speech_len',
     num_workers=1,
     vocab=None,
-    set_name=True,
+    set_name=False,
     ):
-
 
     if not os.path.exists(path_dir + '/cache_files'):
         os.mkdir(path_dir + '/cache_files')
