@@ -4,6 +4,7 @@ import json
 import sys
 import os
 import re
+import copy
 from typing import Any, Dict, List, Optional, Union
 from transformers import Wav2Vec2CTCTokenizer
 from itertools import groupby
@@ -218,15 +219,17 @@ class Wav2Vec2CTCTokenizer_CHAR(Wav2Vec2CTCTokenizer):
     def set_vocab(
         cls,
         vocab_file,
-        vocab_list,
+        vocab,
         bos_token=None,
         eos_token=None,
         do_punctuation=False,
         **kwargs
     ):
+        word_delimiter_token = '|'
+
         print("################### Prepare VOCAB ##################")
         # Prepare Vocab
-        word_delimiter_token = '|'
+        vocab_list = copy.deepcopy(vocab)
         vocab_list.remove(' ') # remove space and replace it by word_delimiter_token
         vocab_list += [word_delimiter_token]
 
