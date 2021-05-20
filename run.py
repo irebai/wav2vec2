@@ -116,8 +116,6 @@ def main():
         num_workers=1,
     )
     
-    exit()
-    
     logger.info("################### MODEL LOAD ##################")
     # Model load
     model = Wav2Vec2ForCTC.from_pretrained(
@@ -134,8 +132,7 @@ def main():
         ctc_loss_reduction="mean",
         pad_token_id=processor.tokenizer.pad_token_id,
         vocab_size=len(processor.tokenizer),
-        tokenizer_type=model_args.tokenizer_type,
-        time_pooling_size=4,
+        time_pooling_size=1,
         pooling_type="max"
     )
     
