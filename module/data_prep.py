@@ -76,6 +76,7 @@ def get_final_data(dataset, batch_size, processor, num_workers=None, cache_file_
     )
 
 def get_final_data_mix(dataset, batch_size, processor_char, processor_bpe, num_workers=None, cache_file_name=None):
+    logger.info('prepare final mixed data')
     def prepare_dataset(batch):
         # check that all files have the correct sampling rate
         assert (
@@ -84,7 +85,7 @@ def get_final_data_mix(dataset, batch_size, processor_char, processor_bpe, num_w
         batch["input_values"] = processor_bpe(batch["speech"], sampling_rate=batch["sampling_rate"][0]).input_values
         # Setup the processor for targets
         with processor_bpe.as_target_processor():
-            batch["labels"] = processor_bpe(batch["target_text"]).input_ids
+            batch["labels_bpe"] = processor_bpe(batch["target_text"]).input_ids
         with processor_char.as_target_processor():
             batch["labels_char"] = processor_char(batch["target_text"]).input_ids
         return batch
@@ -182,6 +183,62 @@ def data_prep(
     data = get_final_data(data, batch_size, processor, num_workers=num_workers, cache_file_name=name)
     
     return data
+
+
+def data_prep_mix(
+    processor_char,
+    processor_bpe,
+    split,
+    batch_size,
+    path_dir,
+    max_samples=None,
+    max_length=None,
+    filter_and_sort_param='speech_len',
+    num_workers=1,
+    vocab=None,
+    set_name=False,
+    ):
+
+    if not os.path.exists(path_dir + '/cache_files'):
+        os.mkdir(path_dir + '/cache_files')
+    cache_file_name = path_dir + '/cache_files/' + 'data_' + split
+
+    #load data
+    data = load_data(split, save_dir=path_dir)
+    
+    #select subset
+    if max_samples is not None:
+        data = select_subset(data, max_samples)
+        cache_file_name += '_' + str(max_samples) + '-samples'
+    
+    #prepare speech (since it doesn't change)
+    name = cache_file_name + '_speech.arrow' if set_name else None
+    data = prepare_speech(data, num_workers=num_workers, cache_file_name=name)
+    
+    #prepare text
+    name = cache_file_name + '_text.arrow' if set_name else None
+    data = prepare_text(data, cache_file_name=name)
+    
+    #filter data based on text
+    if vocab is not None:
+        name = cache_file_name + '_filtered_text.arrow' if set_name else None
+        data = data_filter_text(data, vocab, batch_size, cache_file_name=name)
+    
+    #filter speech
+    if max_length is not None:
+        name = cache_file_name + '_filtered_speech.arrow' if set_name else None
+        data = data_filter(data, filter_and_sort_param, max_length, batch_size, cache_file_name=name)
+    
+    #sort speech
+    name = cache_file_name + '_sorted_speech.arrow' if set_name else None
+    data = data_sort(data, filter_and_sort_param, indices_cache_file_name=name)
+    
+    #get supervised data
+    name = cache_file_name + '_final_data.arrow' if set_name else None
+    data = get_final_data_mix(data, batch_size, processor_char, processor_bpe, num_workers=num_workers, cache_file_name=name)
+    
+    return data
+
 
 def get_text(
     split,

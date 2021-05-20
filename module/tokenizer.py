@@ -220,8 +220,10 @@ class Wav2Vec2CTCTokenizer_CHAR(Wav2Vec2CTCTokenizer):
         cls,
         vocab_file,
         vocab,
-        bos_token=None,
-        eos_token=None,
+        unk_id,
+        pad_id,
+        bos_id=None,
+        eos_id=None,
         do_punctuation=False,
         **kwargs
     ):
@@ -236,24 +238,28 @@ class Wav2Vec2CTCTokenizer_CHAR(Wav2Vec2CTCTokenizer):
         if do_punctuation:
             vocab_list += ['.',',','!','?']
 
+        # Insert special tokens
+        vocab_list.insert(unk_id, '<unk>')
+        vocab_list.insert(pad_id, '<pad>')
+        if bos_id is not None:
+            vocab_list.insert(bos_id, '<bos>')
+        if eos_id is not None:
+            vocab_list.insert(eos_id, '<eos>')
+
+
         vocab_dict = {v: k for k, v in enumerate(vocab_list)}
-        vocab_dict["<unk>"] = len(vocab_dict)
-        vocab_dict["<pad>"] = len(vocab_dict)
-        if bos_token is not None:
-            vocab_dict["<bos>"] = len(vocab_dict)
-        if eos_token is not None:
-            vocab_dict["<eos>"] = len(vocab_dict)
+
 
         with open(vocab_file, "w") as file:
             json.dump(vocab_dict, file)
 
         return cls(
             vocab_file,
-            bos_token=bos_token,
-            eos_token=eos_token,
+            bos_token="<bos>",
+            eos_token="<eos>",
             unk_token="<unk>",
             pad_token="<pad>",
-            word_delimiter_token="|",
+            word_delimiter_token=word_delimiter_token,
             do_lower_case=False,
             **kwargs
         )
