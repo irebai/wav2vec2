@@ -143,8 +143,8 @@ class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
                 attention_mask if attention_mask is not None else torch.ones_like(input_values, dtype=torch.long)
             )
             input_lengths = self._get_feat_extract_output_lengths(attention_mask.sum(-1))
-            if self.time_pooling_size > 1:
-                input_lengths = input_lengths // self.time_pooling_size
+            if self.config.time_pooling_size > 1:
+                input_lengths = input_lengths // self.config.time_pooling_size
 
             # assuming that padded tokens are filled with -100
             # when not being attended to
