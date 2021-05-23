@@ -229,7 +229,7 @@ class Wav2Vec2CTCTokenizer_CHAR(Wav2Vec2CTCTokenizer):
     ):
         word_delimiter_token = '|'
 
-        print("################### Prepare VOCAB ##################")
+        logger.info("Prepare vocabulary")
         # Prepare Vocab
         vocab_list = copy.deepcopy(vocab)
         vocab_list.remove(' ') # remove space and replace it by word_delimiter_token
