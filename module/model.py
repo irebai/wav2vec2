@@ -68,7 +68,11 @@ class Wav2Vec2Config(Wav2Vec2Config):
     ):
         self.time_pooling_size = kwargs.pop('time_pooling_size', 1)
         self.pooling_type = kwargs.pop('pooling_type', None)
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> 0ed50d2237f3b8705f4b70da295d3562aeaaf923
         assert self.time_pooling_size > 0, "time_pooling_size must be greater than 0"
 
         super().__init__(**kwargs)
@@ -78,12 +82,27 @@ class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
     config_class = Wav2Vec2Config
     def __init__(self, config, **kwargs):
         super().__init__(config)
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> 0ed50d2237f3b8705f4b70da295d3562aeaaf923
         self.wav2vec2 = Wav2Vec2Model(config)
 
         self.pooling = Pooling1d(
             pool_type=config.pooling_type,
             kernel_size=config.time_pooling_size,
+<<<<<<< HEAD
+=======
+        )
+
+        self.norm = nn.BatchNorm1d(
+            config.hidden_size,
+            eps=1e-05,
+            momentum=0.1,
+            affine=True,
+            track_running_stats=True,
+>>>>>>> 0ed50d2237f3b8705f4b70da295d3562aeaaf923
         )
 
         self.dropout = nn.Dropout(config.final_dropout)
@@ -119,8 +138,12 @@ class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
 
         hidden_states = outputs[0]
         hidden_states = self.pooling(hidden_states)
-        hidden_states = self.dropout(hidden_states)
 
+        hidden_states = hidden_states.transpose(1, 2)
+        hidden_states = self.norm(hidden_states)
+        hidden_states = hidden_states.transpose(1, 2)
+
+        hidden_states = self.dropout(hidden_states)
         logits = self.lm_head(hidden_states)
 
         loss = None
