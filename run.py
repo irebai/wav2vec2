@@ -6,7 +6,7 @@ import logging
 
 import module.args
 from module.args import set_args, set_checkpoint
-from module.data_prep import data_prep
+from module.data_prep import data_prep, get_text
 from module.trainer import DataCollatorCTCWithPadding, CTCTrainer
 from module.tokenizer import (
     Wav2Vec2CTCTokenizer_CHAR,
@@ -68,7 +68,10 @@ def main():
     vocab_list = ['a','e','i','o','u','y','b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z']
     vocab_list += ['à','â','æ','ç','è','é','ê','ë','î','ï','ô','œ','ù','û','ü','ÿ']
     vocab_list += [' ',"'",'-']
-
+    # special tokens
+    unk_id=0
+    pad_id=1
+    
     logger.info("################### PROCESSOR PREPARATION ##################")
     # Prepare tokenizer
     assert model_args.tokenizer_type in ["sp", "char"], "tokenizer type must be either 'sp' or 'char'."
@@ -78,8 +81,12 @@ def main():
             training_args.output_dir+"/vocab.json",
             vocab_list,
             do_punctuation=False,
+            unk_id=unk_id,
+            pad_id=pad_id,
         )
     elif model_args.tokenizer_type == 'sp':
+        if not os.path.exists('/workspace/train.txt'):
+            get_text('train', '/workspace/train.txt', path_dir=model_args.cache_dir)
         tokenizer = Wav2Vec2CTCTokenizer_SP.train_sentencepiece(
             '/workspace/train.txt',
             '/workspace/tokenizer_new/',
@@ -115,8 +122,6 @@ def main():
         max_samples=100,
         num_workers=1,
     )
-    
-    exit()
     
     logger.info("################### MODEL LOAD ##################")
     # Model load

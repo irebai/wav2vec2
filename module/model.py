@@ -66,9 +66,11 @@ class Wav2Vec2Config(Wav2Vec2Config):
         self,
         **kwargs
     ):
-        self.tokenizer_type = kwargs.pop('tokenizer_type', 'char')
         self.time_pooling_size = kwargs.pop('time_pooling_size', 1)
         self.pooling_type = kwargs.pop('pooling_type', None)
+        
+        assert self.time_pooling_size > 0, "time_pooling_size must be greater than 0"
+
         super().__init__(**kwargs)
 
 
@@ -76,16 +78,12 @@ class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
     config_class = Wav2Vec2Config
     def __init__(self, config, **kwargs):
         super().__init__(config)
-        self.time_pooling_size = kwargs.pop("time_pooling_size", 4)
-        self.pooling_type = kwargs.pop("pooling_type", 'max')
-
-        assert self.time_pooling_size > 0, "time_pooling_size must be greater than 0"
-
+        
         self.wav2vec2 = Wav2Vec2Model(config)
 
         self.pooling = Pooling1d(
-            pool_type=self.pooling_type,
-            kernel_size=self.time_pooling_size,
+            pool_type=config.pooling_type,
+            kernel_size=config.time_pooling_size,
         )
 
         self.dropout = nn.Dropout(config.final_dropout)
@@ -133,8 +131,8 @@ class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
                 attention_mask if attention_mask is not None else torch.ones_like(input_values, dtype=torch.long)
             )
             input_lengths = self._get_feat_extract_output_lengths(attention_mask.sum(-1))
-            if self.time_pooling_size > 1:
-                input_lengths = input_lengths // self.time_pooling_size
+            if self.config.time_pooling_size > 1:
+                input_lengths = input_lengths // self.config.time_pooling_size
 
             # assuming that padded tokens are filled with -100
             # when not being attended to

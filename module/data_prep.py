@@ -75,29 +75,6 @@ def get_final_data(dataset, batch_size, processor, num_workers=None, cache_file_
         cache_file_name=cache_file_name
     )
 
-def get_final_data_mix(dataset, batch_size, processor_char, processor_bpe, num_workers=None, cache_file_name=None):
-    def prepare_dataset(batch):
-        # check that all files have the correct sampling rate
-        assert (
-            len(set(batch["sampling_rate"])) == 1
-        ), f"Make sure all inputs have the same sampling rate of {processor_bpe.feature_extractor.sampling_rate}."
-        batch["input_values"] = processor_bpe(batch["speech"], sampling_rate=batch["sampling_rate"][0]).input_values
-        # Setup the processor for targets
-        with processor_bpe.as_target_processor():
-            batch["labels"] = processor_bpe(batch["target_text"]).input_ids
-        with processor_char.as_target_processor():
-            batch["labels_char"] = processor_char(batch["target_text"]).input_ids
-        return batch
-
-    return dataset.map(
-        prepare_dataset,
-        remove_columns=dataset.column_names,
-        batch_size=batch_size,
-        batched=True,
-        num_proc=multiprocessing.cpu_count() if num_workers == None else num_workers,
-        cache_file_name=cache_file_name
-    )
-
 def data_filter(dataset, param, max_len, batch_size, cache_file_name=None):
     logger.info('filter speech')
     fn = lambda data: (data[param] < max_len)
