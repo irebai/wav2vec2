@@ -223,16 +223,16 @@ class CTCTrainer(Trainer):
             num_training_steps (int): The number of training steps to do.
         """
         def lr_lambda(current_step):
-            warmup_steps = math.ceil(num_training_steps * self.lr_warmup_ratio)
-            constant_steps = math.ceil(num_training_steps * self.lr_constant_ratio)
+            warmup_steps = math.ceil(num_training_steps * self.args.lr_warmup_ratio)
+            constant_steps = math.ceil(num_training_steps * self.args.lr_constant_ratio)
             if current_step < warmup_steps:
                 return float(current_step) / float(max(1, warmup_steps)) # increase the LR [0 > 1] (warm up)
             elif current_step < (warmup_steps + constant_steps): # fix the LR [1] (constant)
                 return 1
             else: 
                 return max(
-                    0.0, float(num_training_steps - current_step) / float(max(1, num_training_steps - (warmup_steps + constant_steps))) # decrease the LR [1 > 0] (linearly decay)
-                )
+                    0.0, float(num_training_steps - current_step) / float(max(1, num_training_steps - (warmup_steps + constant_steps))) 
+                ) # decrease the LR [1 > 0] (linearly decay)
         
         self.lr_scheduler = LambdaLR(self.optimizer, lr_lambda)
 

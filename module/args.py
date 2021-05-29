@@ -131,7 +131,7 @@ class TrainingArguments(TrainingArguments):
         # Additional attributes without default values
         self.lr_warmup_ratio = kwargs.pop('lr_warmup_ratio', 0.1)
         self.lr_constant_ratio = kwargs.pop('lr_constant_ratio', 0.4)
-        
+
         if self.warmup_ratio < 0 or self.warmup_ratio > 1:
             raise ValueError("warmup_ratio must lie in range [0,1]")
 
@@ -140,7 +140,7 @@ class TrainingArguments(TrainingArguments):
             
         if self.warmup_ratio + self.lr_constant_ratio > 1:
             raise ValueError("warmup_ratio + lr_constant_ratio must lie in range [0,1]")
-    
+
 def set_args():
     logger.info("Setup arguments")
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
@@ -150,6 +150,9 @@ def set_args():
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    
+    training_args.add_arguments()
+    
     
     # Log on each process the small summary:
     logger.warning(
