@@ -48,6 +48,8 @@ class Reverberation(BaseWaveformTransform):
                 logger.warning(rir_file + " not found")
             else:
                 self.wavs += self._parse_rir_list(rir_file)
+        
+        logger.info('Loaded '+str(len(self.wavs))+' noise files')
 
     def apply(self, samples, sample_rate):
         samp_index = self.parameters["samp_index"]
@@ -100,7 +102,6 @@ class Reverberation(BaseWaveformTransform):
                     'path': filepath,
                     'values': speech_array
                 })
-                break
 
         return rir_list
 

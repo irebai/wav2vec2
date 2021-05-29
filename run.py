@@ -13,6 +13,7 @@ from module.tokenizer import (
     Wav2Vec2CTCTokenizer_SP,
 )
 from module.model import Wav2Vec2ForCTC
+from module.augmentation import SpeechAugment
 from transformers.trainer_utils import is_main_process
 from transformers import (
     Wav2Vec2FeatureExtractor,
@@ -167,7 +168,14 @@ def main():
     
 
     # Data collator
-    data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
+augmenter = SpeechAugment(
+    noise_dir='/workspace/noise/background_noises',
+    rir_dir='/workspace/noise/',
+    rir_lists=['simulated_rirs_16k/smallroom/rir_list', 'simulated_rirs_16k/mediumroom/rir_list', 'simulated_rirs_16k/largeroom/rir_list'],
+    apply_prob=0.4,
+    sample_rate=16000,
+)
+    data_collator = DataCollatorCTCWithPadding(processor=processor, augmenter=augmenter, padding=True)
 
     logger.info("################### TRAINER LOAD ##################")
     # Initialize our Trainer

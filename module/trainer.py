@@ -14,7 +14,7 @@ from transformers import (
     is_apex_available
 )
 from packaging import version
-from module.augmention import SpeechAugment
+from module.augmentation import SpeechAugment
 if is_apex_available():
     from apex import amp
 
