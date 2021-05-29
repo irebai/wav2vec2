@@ -1,8 +1,10 @@
 import random
+import math
 import torch
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import Sampler
+from torch.optim.lr_scheduler import LambdaLR
 from dataclasses import dataclass
 from transformers import Wav2Vec2Processor
 from typing import Any, Dict, List, Optional, Union
@@ -209,7 +211,32 @@ class CTCTrainer(Trainer):
             self.optimizer = optimizer_cls(optimizer_grouped_parameters, **optimizer_kwargs)
     '''
   
-                
+
+    def create_scheduler(self, num_training_steps: int):
+        """
+        Setup the scheduler. The optimizer of the trainer must have been set up before this method is called.
+        This method was built based on https://arxiv.org/pdf/2006.13979 :
+            "The learning rate schedule has three phases: warm up for the first 10% of updates, 
+             keep constant for 40% and then linearly decay for the remainder"
+        
+        Args:
+            num_training_steps (int): The number of training steps to do.
+        """
+        def lr_lambda(current_step):
+            warmup_steps = math.ceil(num_training_steps * self.lr_warmup_ratio)
+            constant_steps = math.ceil(num_training_steps * self.lr_constant_ratio)
+            if current_step < warmup_steps:
+                return float(current_step) / float(max(1, warmup_steps)) # increase the LR [0 > 1] (warm up)
+            elif current_step < (warmup_steps + constant_steps): # fix the LR [1] (constant)
+                return 1
+            else: 
+                return max(
+                    0.0, float(num_training_steps - current_step) / float(max(1, num_training_steps - (warmup_steps + constant_steps))) # decrease the LR [1 > 0] (linearly decay)
+                )
+        
+        self.lr_scheduler = LambdaLR(self.optimizer, lr_lambda)
+
+    
     def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
         """
         Perform a training step on a batch of inputs.

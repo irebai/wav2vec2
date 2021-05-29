@@ -126,6 +126,20 @@ class DataTrainingArguments:
         metadata={"help": "A list of characters to remove from the transcripts."},
     )
 
+class TrainingArguments(TrainingArguments):
+    def add_arguments(self, **kwargs):
+        # Additional attributes without default values
+        self.lr_warmup_ratio = kwargs.pop('lr_warmup_ratio', 0.1)
+        self.lr_constant_ratio = kwargs.pop('lr_constant_ratio', 0.4)
+        
+        if self.warmup_ratio < 0 or self.warmup_ratio > 1:
+            raise ValueError("warmup_ratio must lie in range [0,1]")
+
+        if self.lr_constant_ratio < 0 or self.lr_constant_ratio > 1:
+            raise ValueError("warmup_ratio must lie in range [0,1]")
+            
+        if self.warmup_ratio + self.lr_constant_ratio > 1:
+            raise ValueError("warmup_ratio + lr_constant_ratio must lie in range [0,1]")
     
 def set_args():
     logger.info("Setup arguments")
