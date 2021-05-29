@@ -1,0 +1,41 @@
+import torch
+import numpy as np
+from typing import Optional, Tuple, List
+
+from audiomentations import (
+    AddGaussianNoise,
+    ClippingDistortion,
+    FrequencyMask,
+    Gain,
+    PitchShift,
+    PolarityInversion,
+    Shift,
+    TimeMask,
+    TimeStretch,
+)
+
+class SpeechAugment:
+    def __init__(self,
+        noise_dir=None,
+        apply_prob=0.5,
+        sample_rate=16000
+    ):
+        self.sample_rate = sample_rate
+        self.apply_prob = apply_prob
+        self.transforms = [
+            AddBackgroundNoise(sounds_path=noise_dir, min_snr_in_db=1, max_snr_in_db=5, p=1.0),
+            AddGaussianNoise(min_amplitude=0.001, max_amplitude=0.01, p=1.0),
+            ClippingDistortion(min_percentile_threshold=10, max_percentile_threshold=30, p=1.0),
+            FrequencyMask(min_frequency_band=0.2, max_frequency_band=0.4, p=1.0),
+            Gain(min_gain_in_db=-6, max_gain_in_db=6, p=1.0),
+            TimeStretch(min_rate=0.9, max_rate=1.1, leave_length_unchanged=False, p=1.0),
+            PitchShift(min_semitones=-2, max_semitones=3, p=1.0),
+            Trim(p=1.0)
+        ]
+
+    def __call__(self, input_values: List[float]):
+        """apply a random data augmentation technique from a list of transformations"""
+        if random.random() < self.apply_prob:
+            transform = transforms[random.randint(0, len(transforms)-1)]
+            input_values = transform(samples=np.array(input_values), sample_rate=self.sample_rate).tolist()
+        return input_values
