@@ -52,6 +52,9 @@ class Reverberation(BaseWaveformTransform):
         logger.info('Loaded '+str(len(self.wavs))+' noise files')
 
     def apply(self, samples, sample_rate):
+        # Cast samples object type to torch tensor
+        samples = torch.as_tensor(samples)
+
         samp_index = self.parameters["samp_index"]
         rir_samples = self.wavs[samp_index]['values']
 

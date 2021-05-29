@@ -1,4 +1,5 @@
 import torch
+import random
 import numpy as np
 from typing import Optional, Tuple, List
 
@@ -39,11 +40,12 @@ class SpeechAugment:
         
         if rir_dir is not None and rir_lists is not None:
             self.transforms += [Reverberation(path_dir=rir_dir, rir_list_files=rir_lists, sampling_rate=sample_rate, p=1.0)]
-
+        
+        self.num_trans = len(self.transforms)
 
     def __call__(self, input_values: List[float]):
         """apply a random data augmentation technique from a list of transformations"""
         if random.random() < self.apply_prob:
-            transform = transforms[random.randint(0, len(transforms)-1)]
+            transform = self.transforms[random.randint(0, self.num_trans - 1)]
             input_values = transform(samples=np.array(input_values), sample_rate=self.sample_rate).tolist()
         return input_values

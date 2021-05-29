@@ -86,6 +86,14 @@ class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
             kernel_size=config.time_pooling_size,
         )
 
+        self.norm = nn.BatchNorm1d(
+            config.hidden_size,
+            eps=1e-05,
+            momentum=0.1,
+            affine=True,
+            track_running_stats=True,
+        )
+
         self.dropout = nn.Dropout(config.final_dropout)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size)
 

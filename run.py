@@ -168,13 +168,13 @@ def main():
     
 
     # Data collator
-augmenter = SpeechAugment(
-    noise_dir='/workspace/noise/background_noises',
-    rir_dir='/workspace/noise/',
-    rir_lists=['simulated_rirs_16k/smallroom/rir_list', 'simulated_rirs_16k/mediumroom/rir_list', 'simulated_rirs_16k/largeroom/rir_list'],
-    apply_prob=0.4,
-    sample_rate=16000,
-)
+    augmenter = SpeechAugment(
+        noise_dir='/workspace/noise/background_noises',
+        rir_dir='/workspace/noise/',
+        rir_lists=['simulated_rirs_16k/smallroom/rir_list', 'simulated_rirs_16k/mediumroom/rir_list', 'simulated_rirs_16k/largeroom/rir_list'],
+        apply_prob=0.4,
+        sample_rate=16000,
+    )
     data_collator = DataCollatorCTCWithPadding(processor=processor, augmenter=augmenter, padding=True)
 
     logger.info("################### TRAINER LOAD ##################")
