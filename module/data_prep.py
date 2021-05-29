@@ -121,7 +121,7 @@ def data_prep(
     ):
 
     if not os.path.exists(path_dir + '/cache_files'):
-        os.mkdir(path_dir + '/cache_files')
+        os.makedirs(path_dir + '/cache_files', exist_ok=True)
     cache_file_name = path_dir + '/cache_files/' + 'data_' + split
 
     #load data
