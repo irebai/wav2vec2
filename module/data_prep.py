@@ -8,6 +8,7 @@ import multiprocessing
 import re
 import logging
 import sys
+from typing import Union, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -42,8 +43,12 @@ def prepare_text(dataset, cache_file_name=None):
     logger.info('prepare text')
     return dataset.map(remove_special_characters, remove_columns=["sentence"], cache_file_name=cache_file_name)
 
-def select_subset(dataset, nb_samples):
-    return dataset.select(range(nb_samples))
+def select_subset(dataset, nb_samples: Union[int, Tuple[int, int]]):
+    if isinstance(nb_samples, int):
+        return dataset.select(range(nb_samples))
+    else:
+        beg, end = nb_samples
+        return dataset.select(range(beg, end))
 
 def prepare_speech(dataset, num_workers=None, cache_file_name=None):
     logger.info('prepare speech')
@@ -103,8 +108,8 @@ def write_text(dataset, param, output):
         for i, t in enumerate(text):
              f.write(str(i)+" "+t.strip()+"\n")
 
-def datasets_concat(dataset1, dataset2):
-    return datasets.concatenate_datasets([dataset1, dataset2])
+def datasets_concat(list_data):
+    return datasets.concatenate_datasets(list_data)
 
 
 def data_prep(
@@ -112,8 +117,8 @@ def data_prep(
     split,
     batch_size,
     path_dir,
-    max_samples=None,
-    max_length=None,
+    max_samples: Optional[Union[int, List[int], str]] = None,
+    max_length: Optional[int] = None,
     filter_and_sort_param='speech_len',
     num_workers=1,
     vocab=None,
@@ -122,41 +127,53 @@ def data_prep(
 
     if not os.path.exists(path_dir + '/cache_files'):
         os.makedirs(path_dir + '/cache_files', exist_ok=True)
-    cache_file_name = path_dir + '/cache_files/' + 'data_' + split
 
     #load data
     data = load_data(split, save_dir=path_dir)
     
     #select subset
+    # Using a list of max_samples allows to use an already prepare features
     if max_samples is not None:
-        data = select_subset(data, max_samples)
-        cache_file_name += '_' + str(max_samples) + '-samples'
-    
-    #prepare speech (since it doesn't change)
-    name = cache_file_name + '_speech.arrow' if set_name else None
-    data = prepare_speech(data, num_workers=num_workers, cache_file_name=name)
+        if isinstance(max_samples, int):
+            max_samples = [max_samples]
+        elif isinstance(max_samples, str):
+            try:
+                max_samples = max_samples.split('+')
+                max_samples = [int(max_sample) for max_sample in max_samples]
+            except e:
+                raise RuntimeError("invalid value of max_samples="+max_samples)
+        subsets = []
+        intial_pos = 0
+        for max_sample in max_samples:
+            subsets.append(select_subset(data, (intial_pos, intial_pos + max_sample)))
+            intial_pos = max_sample
+        data = subsets
+
+    #prepare speech (prepare it before text since it doesn't depend on the tokenizer)
+    if not isinstance(data, list):
+        data = prepare_speech(data, num_workers=num_workers)
+    else:
+        datasets = []
+        for data_ in data:
+            datasets.append(prepare_speech(data_, num_workers=num_workers))
+        data = datasets_concat(datasets)
     
     #prepare text
-    name = cache_file_name + '_text.arrow' if set_name else None
-    data = prepare_text(data, cache_file_name=name)
+    data = prepare_text(data)
     
     #filter data based on text
     if vocab is not None:
-        name = cache_file_name + '_filtered_text.arrow' if set_name else None
-        data = data_filter_text(data, vocab, batch_size, cache_file_name=name)
+        data = data_filter_text(data, vocab, batch_size)
     
     #filter speech
     if max_length is not None:
-        name = cache_file_name + '_filtered_speech.arrow' if set_name else None
-        data = data_filter(data, filter_and_sort_param, max_length, batch_size, cache_file_name=name)
+        data = data_filter(data, filter_and_sort_param, max_length, batch_size)
     
     #sort speech
-    name = cache_file_name + '_sorted_speech.arrow' if set_name else None
-    data = data_sort(data, filter_and_sort_param, indices_cache_file_name=name)
+    data = data_sort(data, filter_and_sort_param)
     
     #get supervised data
-    name = cache_file_name + '_final_data.arrow' if set_name else None
-    data = get_final_data(data, batch_size, processor, num_workers=num_workers, cache_file_name=name)
+    data = get_final_data(data, batch_size, processor, num_workers=num_workers)
     
     return data
 
