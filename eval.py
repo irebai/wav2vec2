@@ -32,7 +32,7 @@ def get_data(
     data_path,
     batch_size=1):
 
-    dataset = data_prep(processor, split, batch_size, data_path, num_workers=1)
+    dataset = data_prep(processor, split, batch_size, data_path)
     data_sampler = BatchRandomSampler(dataset, batch_size)
     data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
 
