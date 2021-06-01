@@ -4,7 +4,6 @@ import torchaudio
 import json
 import datasets
 import os
-import multiprocessing
 import re
 import logging
 import sys
@@ -50,15 +49,15 @@ def select_subset(dataset, nb_samples: Union[int, Tuple[int, int]]):
         beg, end = nb_samples
         return dataset.select(range(beg, end))
 
-def prepare_speech(dataset, num_workers=None, cache_file_name=None):
+def prepare_speech(dataset, cache_file_name=None):
     logger.info('prepare speech')
     return dataset.map(
         speech_file_to_array_fn,
-        num_proc=multiprocessing.cpu_count() if num_workers == None else num_workers,
+        num_proc=1,
         cache_file_name=cache_file_name
     )
 
-def get_final_data(dataset, batch_size, processor, num_workers=None, cache_file_name=None):
+def get_final_data(dataset, batch_size, processor, cache_file_name=None):
     logger.info('prepare final data')
     def prepare_dataset(batch):
         # check that all files have the correct sampling rate
@@ -76,7 +75,7 @@ def get_final_data(dataset, batch_size, processor, num_workers=None, cache_file_
         remove_columns=dataset.column_names,
         batch_size=batch_size,
         batched=True,
-        num_proc=multiprocessing.cpu_count() if num_workers == None else num_workers,
+        num_proc=1,
         cache_file_name=cache_file_name
     )
 
@@ -120,7 +119,6 @@ def data_prep(
     max_samples: Optional[Union[int, List[int], str]] = None,
     max_length: Optional[int] = None,
     filter_and_sort_param='speech_len',
-    num_workers=1,
     vocab=None,
     set_name=False,
     ):
@@ -151,11 +149,11 @@ def data_prep(
 
     #prepare speech (prepare it before text since it doesn't depend on the tokenizer)
     if not isinstance(data, list):
-        data = prepare_speech(data, num_workers=num_workers)
+        data = prepare_speech(data)
     else:
         datasets = []
         for data_ in data:
-            datasets.append(prepare_speech(data_, num_workers=num_workers))
+            datasets.append(prepare_speech(data_))
         data = datasets_concat(datasets)
     
     #prepare text
@@ -173,7 +171,7 @@ def data_prep(
     data = data_sort(data, filter_and_sort_param)
     
     #get supervised data
-    data = get_final_data(data, batch_size, processor, num_workers=num_workers)
+    data = get_final_data(data, batch_size, processor)
     
     return data
 
