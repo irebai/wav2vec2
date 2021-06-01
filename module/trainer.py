@@ -52,7 +52,7 @@ class DataCollatorCTCWithPadding:
     """
 
     processor: Wav2Vec2Processor
-    augmenter: SpeechAugment
+    augmenter: SpeechAugment = None
     padding: Union[bool, str] = True
     max_length: Optional[int] = None
     max_length_labels: Optional[int] = None
@@ -62,7 +62,9 @@ class DataCollatorCTCWithPadding:
     def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
         # split inputs and labels since they have to be of different lenghts and need
         # different padding methods
-        input_features = [{"input_values": self.augmenter(feature["input_values"])} for feature in features]
+        input_features = [{
+            "input_values": self.augmenter(feature["input_values"]) if self.augmenter is not None else feature["input_values"]
+            } for feature in features]
         label_features = [{"input_ids": feature["labels"]} for feature in features]
 
         batch = self.processor.pad(
