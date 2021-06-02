@@ -23,6 +23,8 @@ from transformers import (
 import datasets
 import numpy as np
 
+import warnings
+warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -112,7 +114,6 @@ def main():
         path_dir=model_args.cache_dir,
         max_samples=100000,
         max_length=16000*15,
-        num_workers=1,
         vocab=vocab_list
     )
     eval_dataset = data_prep(
@@ -121,7 +122,6 @@ def main():
         training_args.per_device_eval_batch_size,
         path_dir=model_args.cache_dir,
         max_samples=100,
-        num_workers=1,
     )
     
     logger.info("################### MODEL LOAD ##################")
@@ -134,7 +134,7 @@ def main():
         hidden_dropout=0.047,
         feat_proj_dropout=0.04,
         apply_spec_augment=True,
-        mask_time_prob=0.4,
+        mask_time_prob=0.2,
         layerdrop=0.041,
         gradient_checkpointing=True,
         ctc_loss_reduction="mean",
@@ -172,7 +172,7 @@ def main():
         noise_dir='/workspace/noise/background_noises',
         rir_dir='/workspace/noise/',
         rir_lists=['simulated_rirs_16k/smallroom/rir_list', 'simulated_rirs_16k/mediumroom/rir_list', 'simulated_rirs_16k/largeroom/rir_list'],
-        apply_prob=0.4,
+        apply_prob=0.2,
         sample_rate=16000,
     )
     data_collator = DataCollatorCTCWithPadding(processor=processor, augmenter=augmenter, padding=True)
