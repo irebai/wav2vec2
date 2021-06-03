@@ -35,17 +35,29 @@ logging.basicConfig(
 logger.setLevel(logging.INFO)
 
 def main():
-    sys.argv = [
-        'run.py',
+    # output directory to save models and data
+    output_dir="/workspace"
+    # Vocab list
+    vocab_list = ['a','e','i','o','u','y','b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z']
+    vocab_list += ['à','â','æ','ç','è','é','ê','ë','î','ï','ô','œ','ù','û','ü','ÿ']
+    vocab_list += [' ',"'",'-']
+    # special tokens
+    unk_id=0
+    pad_id=1
+    # SP train text
+    train_text=output_dir + '/train.txt'
+
+
+    model_args, data_args, training_args = set_args([
         '--model_name_or_path=facebook/wav2vec2-large-xlsr-53',
         '--dataset_config_name=fr', 
-        '--output_dir=/workspace/output_models/wav2vec2-large-xlsr-53', 
-        '--cache_dir=/workspace/output_models/data',
+        '--output_dir='+output_dir+'/output_models/wav2vec2-large-xlsr-53',
+        '--cache_dir='+output_dir+'/output_models/data',
         '--num_train_epochs=25', 
         '--per_device_train_batch_size=32', 
         '--per_device_eval_batch_size=32', 
         '--evaluation_strategy=steps', 
-        '--learning_rate=3e-4', 
+        '--learning_rate=1e-4',
         '--warmup_steps=500', 
         '--fp16', 
         '--overwrite_output_dir',
@@ -59,22 +71,13 @@ def main():
         '--tokenizer_type=char',
         '--gradient_checkpointing', 
         '--do_train', 
-        '--do_eval']
-
-    model_args, data_args, training_args = set_args()
+        '--do_eval'])
     last_checkpoint = set_checkpoint(training_args)
 
     if not os.path.exists(training_args.output_dir):
-        os.mkdir(training_args.output_dir)
+        os.makedirs(training_args.output_dir, exist_ok=True)
 
-    # Vocab list
-    vocab_list = ['a','e','i','o','u','y','b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z']
-    vocab_list += ['à','â','æ','ç','è','é','ê','ë','î','ï','ô','œ','ù','û','ü','ÿ']
-    vocab_list += [' ',"'",'-']
-    # special tokens
-    unk_id=0
-    pad_id=1
-    
+
     logger.info("################### PROCESSOR PREPARATION ##################")
     # Prepare tokenizer
     assert model_args.tokenizer_type in ["sp", "char"], "tokenizer type must be either 'sp' or 'char'."
@@ -88,11 +91,11 @@ def main():
             pad_id=pad_id,
         )
     elif model_args.tokenizer_type == 'sp':
-        if not os.path.exists('/workspace/train.txt'):
-            get_text('train', '/workspace/train.txt', path_dir=model_args.cache_dir)
+        if not os.path.exists(train_text):
+            get_text('train', train_text, path_dir=model_args.cache_dir)
         tokenizer = Wav2Vec2CTCTokenizer_SP.train_sentencepiece(
-            '/workspace/train.txt',
-            '/workspace/tokenizer_new/',
+            train_text,
+            output_dir + '/tokenizer_new/',
             1000,
             model_type="unigram",
             pad_id=1,
@@ -112,7 +115,7 @@ def main():
         'train+validation',
         training_args.per_device_train_batch_size,
         path_dir=model_args.cache_dir,
-        max_samples=100000,
+        max_samples='100000+100000',
         max_length=16000*15,
         vocab=vocab_list
     )
@@ -127,8 +130,8 @@ def main():
     logger.info("################### MODEL LOAD ##################")
     # Model load
     model = Wav2Vec2ForCTC.from_pretrained(
-        'facebook/wav2vec2-large-xlsr-53',
-        cache_dir="/workspace/output_models/facebook-wav2vec2-large-xlsr-53",
+        model_args.model_name_or_path,
+        cache_dir=output_dir + "/output_models/facebook-wav2vec2-large-xlsr-53",
         activation_dropout=0.055,
         attention_dropout=0.094,
         hidden_dropout=0.047,
@@ -169,8 +172,8 @@ def main():
 
     # Data collator
     augmenter = SpeechAugment(
-        noise_dir='/workspace/noise/background_noises',
-        rir_dir='/workspace/noise/',
+        noise_dir=output_dir + '/noise/background_noises',
+        rir_dir=output_dir + '/noise/',
         rir_lists=['simulated_rirs_16k/smallroom/rir_list', 'simulated_rirs_16k/mediumroom/rir_list', 'simulated_rirs_16k/largeroom/rir_list'],
         apply_prob=0.2,
         sample_rate=16000,

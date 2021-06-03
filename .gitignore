@@ -1,0 +1,6 @@
+.ipynb_checkpoints/
+cer/cer.py.lock
+module/.ipynb_checkpoints/
+module/__pycache__/
+module/augmentations/__pycache__/
+wer/wer.py.lock

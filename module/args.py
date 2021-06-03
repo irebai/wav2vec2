@@ -141,18 +141,12 @@ class TrainingArguments(TrainingArguments):
         if self.warmup_ratio + self.lr_constant_ratio > 1:
             raise ValueError("warmup_ratio + lr_constant_ratio must lie in range [0,1]")
 
-def set_args():
+def set_args(args):
     logger.info("Setup arguments")
+    sys.argv = ['none.py'] + args
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
-    if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
-        # If we pass only one argument to the script and it's the path to a json file,
-        # let's parse it to get our arguments.
-        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
-    else:
-        model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-    
+    model_args, data_args, training_args = parser.parse_args_into_dataclasses()
     training_args.add_arguments()
-    
     
     # Log on each process the small summary:
     logger.warning(
