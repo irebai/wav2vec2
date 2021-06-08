@@ -68,8 +68,11 @@ class Wav2Vec2Config(Wav2Vec2Config):
     ):
         self.time_pooling_size = kwargs.pop('time_pooling_size', 1)
         self.pooling_type = kwargs.pop('pooling_type', None)
+        self.normalize_wav2vec = kwargs.pop('normalize_wav2vec', True)
+        self.normalize_type = kwargs.pop('normalize_type', 'batch')
         
         assert self.time_pooling_size > 0, "time_pooling_size must be greater than 0"
+        assert self.normalize_type in ['batch', 'layer'], "normalize_type must be either 'batch' or 'layer'"
 
         super().__init__(**kwargs)
 
@@ -84,6 +87,14 @@ class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
         self.pooling = Pooling1d(
             pool_type=config.pooling_type,
             kernel_size=config.time_pooling_size,
+        )
+
+        self.norm = nn.BatchNorm1d(
+            config.hidden_size,
+            eps=1e-05,
+            momentum=0.1,
+            affine=True,
+            track_running_stats=True,
         )
 
         self.dropout = nn.Dropout(config.final_dropout)
@@ -119,6 +130,15 @@ class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
 
         hidden_states = outputs[0]
         hidden_states = self.pooling(hidden_states)
+
+        if self.conf.normalize_wav2vec:
+            if self.conf.normalize_type == 'batch':
+                hidden_states = hidden_states.transpose(1, 2)
+                hidden_states = self.norm(hidden_states)
+                hidden_states = hidden_states.transpose(1, 2)
+            else:
+                hidden_states = F.layer_norm()
+
         hidden_states = self.dropout(hidden_states)
         logits = self.lm_head(hidden_states)
 
