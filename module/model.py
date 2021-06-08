@@ -131,8 +131,8 @@ class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
         hidden_states = outputs[0]
         hidden_states = self.pooling(hidden_states)
 
-        if self.conf.normalize_wav2vec:
-            if self.conf.normalize_type == 'batch':
+        if self.config.normalize_wav2vec:
+            if self.config.normalize_type == 'batch':
                 hidden_states = hidden_states.transpose(1, 2)
                 hidden_states = self.norm(hidden_states)
                 hidden_states = hidden_states.transpose(1, 2)

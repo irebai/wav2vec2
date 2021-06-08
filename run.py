@@ -144,7 +144,9 @@ def main():
         pad_token_id=processor.tokenizer.pad_token_id,
         vocab_size=len(processor.tokenizer),
         time_pooling_size=1,
-        pooling_type="max"
+        pooling_type="max",
+        normalize_wav2vec=False,
+        normalize_type="batch"
     )
     
     if model_args.freeze_feature_extractor:
