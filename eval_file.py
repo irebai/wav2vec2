@@ -13,10 +13,12 @@ import argparse
 
 def decode(
     model_dir,
-    file_path
+    file_path,
+    device
 ):
     processor = Wav2Vec2Processor.from_pretrained(model_dir)
     model = Wav2Vec2ForCTC.from_pretrained(model_dir)
+    model = model.to(device)
 
     speech_array, sampling_rate = torchaudio.load(file_path)
     if sampling_rate != 16000:
@@ -25,6 +27,7 @@ def decode(
 
     speech_array = speech_array.squeeze().numpy()
     inputs = torch.tensor([speech_array])
+    inputs = inputs.to(device)
 
     with torch.no_grad():
         logits = model(inputs).logits
@@ -47,12 +50,24 @@ if __name__ == "__main__":
         help='tokenizer type used for training the model',
         type=str,
         required=True)
+    parser.add_argument(
+        '--device',
+        help='set the device to be used for computation',
+        type=str,
+        default='cpu'
+    )
     eval_args = parser.parse_args()
+
+    if not os.path.exists(eval_args.model+"/pytorch_model.bin"):
+        raise ValueError("The model file 'pytorch_model.bin' doesn't exist")
 
     if not os.path.exists(eval_args.file):
         raise ValueError("The provided file "+eval_args.file+" doesn't exist")
 
+    assert eval_args.device in ['cpu', 'cuda'], "The device option must be either 'cpu' or 'cuda'"
+
     decode(
         model_dir=eval_args.model,
-        file_path=eval_args.file
+        file_path=eval_args.file,
+        device=eval_args.device
     )
