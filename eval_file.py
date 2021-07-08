@@ -10,6 +10,10 @@ import torch
 import torchaudio
 import os
 import argparse
+import ctcdecode
+import numpy as np
+
+
 
 def decode(
     model_dir,
@@ -19,7 +23,7 @@ def decode(
     processor = Wav2Vec2Processor.from_pretrained(model_dir)
     model = Wav2Vec2ForCTC.from_pretrained(model_dir)
     model = model.to(device)
-
+    
     speech_array, sampling_rate = torchaudio.load(file_path)
     if sampling_rate != 16000:
         resampler = torchaudio.transforms.Resample(sampling_rate, 16_000)
@@ -32,9 +36,38 @@ def decode(
     with torch.no_grad():
         logits = model(inputs).logits
 
+    # Gready search decoding
     predicted_ids = torch.argmax(logits, dim=-1)
     predicted_sentence = processor.batch_decode(predicted_ids)
+    print(predicted_sentence)
+    
+    # Beam Search decoding
+    vocab = list(processor.tokenizer.get_vocab().keys())
+    vocab[vocab.index('<pad>')] = ''
+    vocab[vocab.index(processor.tokenizer.word_delimiter_token)] = ' '
+    decoder = ctcdecode.BeamSearchDecoder(
+        vocab,
+        num_workers=4,
+        beam_width=64,
+        cutoff_prob=np.log(0.000001),
+        cutoff_top_n=40
+    )
+    predicted_sentence = decoder.decode_batch(logits)
+    print(predicted_sentence)
 
+    # LM based decoding
+    alpha = 1 # LM Weight
+    beta = 0.0 # LM Usage Reward
+    word_lm_scorer = ctcdecode.WordKenLMScorer('/workspace/lmdecode/models/fr_3gram_lm.bin', '/workspace/lmdecode/models/fr_lm.lexicon', alpha, beta)
+    decoder = ctcdecode.BeamSearchDecoder(
+        vocab,
+        num_workers=4,
+        beam_width=64,
+        scorers=[word_lm_scorer],
+        cutoff_prob=np.log(0.000001),
+        cutoff_top_n=40
+    )
+    predicted_sentence = decoder.decode_batch(logits)
     print(predicted_sentence)
 
 
