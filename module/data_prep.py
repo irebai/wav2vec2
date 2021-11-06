@@ -27,16 +27,19 @@ def remove_special_characters(batch):
 # Preprocessing the datasets.
 # We need to read the aduio files as arrays and tokenize the targets.
 def speech_file_to_array_fn(batch):
-    resampler = torchaudio.transforms.Resample(48_000, 16_000)
     speech_array, sampling_rate = torchaudio.load(batch["path"])
-    batch["speech"] = resampler(speech_array).squeeze().numpy()
-    batch["sampling_rate"] = 16_000
+    if sampling_rate != 16000:
+        resampler = torchaudio.transforms.Resample(sampling_rate, 16000)
+        batch["speech"] = resampler(speech_array).squeeze().numpy()
+    else:
+        batch["speech"] = speech_array.squeeze().numpy()
+    batch["sampling_rate"] = 16000
     batch["speech_len"] = len(batch["speech"])
     return batch
 
-def load_data(data, save_dir):
-    logger.info('load data')
-    return datasets.load_dataset("common_voice", "fr", split=data, cache_dir=save_dir)
+def load_data(dataset, name, split, save_dir):
+    logger.info('load data')    
+    return datasets.load_dataset(dataset, name=name, split=split, cache_dir=save_dir)
 
 def prepare_text(dataset, cache_file_name=None):
     logger.info('prepare text')
@@ -113,6 +116,8 @@ def datasets_concat(list_data):
 
 def data_prep(
     processor,
+    dataset,
+    name,
     split,
     batch_size,
     path_dir,
@@ -127,7 +132,7 @@ def data_prep(
         os.makedirs(path_dir + '/cache_files', exist_ok=True)
 
     #load data
-    data = load_data(split, save_dir=path_dir)
+    data = load_data(dataset, name, split, save_dir=path_dir)
     
     #select subset
     # Using a list of max_samples allows to use an already prepare features
@@ -176,12 +181,14 @@ def data_prep(
     return data
 
 def get_text(
+    dataset,
+    name,
     split,
     output_file,
     path_dir):
 
     #load data
-    data = load_data(split, save_dir=path_dir)
+    data = load_data(dataset, name, split, save_dir=path_dir)
     
     #prepare text
     data = prepare_text(data)

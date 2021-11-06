@@ -92,7 +92,7 @@ def main():
         )
     elif model_args.tokenizer_type == 'sp':
         if not os.path.exists(train_text):
-            get_text('train', train_text, path_dir=model_args.cache_dir)
+            get_text('common_voice', 'fr', 'train', train_text, path_dir=model_args.cache_dir)
         tokenizer = Wav2Vec2CTCTokenizer_SP.train_sentencepiece(
             train_text,
             output_dir + '/tokenizer_new/',
@@ -112,15 +112,19 @@ def main():
     logger.info("################### DATA PREPARATION ##################")
     train_dataset = data_prep(
         processor,
+        'common_voice',
+        'fr',
         'train+validation',
         training_args.per_device_train_batch_size,
         path_dir=model_args.cache_dir,
-        max_samples='100000+100000',
+        max_samples=100000,
         max_length=16000*15,
         vocab=vocab_list
     )
     eval_dataset = data_prep(
         processor,
+        'common_voice',
+        'fr',
         'test',
         training_args.per_device_eval_batch_size,
         path_dir=model_args.cache_dir,
@@ -146,7 +150,9 @@ def main():
         time_pooling_size=1,
         pooling_type="max",
         normalize_wav2vec=False,
-        normalize_type="batch"
+        normalize_type="batch",
+        num_ff_layers=0,
+        reduce_ff_layer=1,
     )
     
     if model_args.freeze_feature_extractor:

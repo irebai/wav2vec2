@@ -5,6 +5,7 @@ from transformers import (
     Wav2Vec2Processor
 )
 from module.model import Wav2Vec2ForCTC
+from module.decoder import KenLMDecoder
 
 import torch
 import torchaudio
@@ -17,6 +18,10 @@ def decode(
     device
 ):
     processor = Wav2Vec2Processor.from_pretrained(model_dir)
+    decoder = KenLMDecoder(
+        processor,
+        "./lm.bin",
+        "./vocab.txt")
     model = Wav2Vec2ForCTC.from_pretrained(model_dir)
     model = model.to(device)
 
@@ -34,10 +39,14 @@ def decode(
 
     predicted_ids = torch.argmax(logits, dim=-1)
     predicted_sentence = processor.batch_decode(predicted_ids)
-
     print(predicted_sentence)
 
-
+    # KenLM search
+    lm_tokens, lm_scores = decoder.decode(logits.cpu().detach())
+    predicted_sentence = processor.batch_decode(lm_tokens[0][:])
+    print(predicted_sentence)
+    
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -47,7 +56,7 @@ if __name__ == "__main__":
         required=True)
     parser.add_argument(
         '--file',
-        help='tokenizer type used for training the model',
+        help='Audio file to transcript',
         type=str,
         required=True)
     parser.add_argument(

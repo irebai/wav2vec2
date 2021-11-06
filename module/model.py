@@ -17,6 +17,7 @@ class Pooling1d(nn.Module):
         self,
         pool_type,
         kernel_size,
+        dim=None,
         ceil_mode=False,
         padding=0,
         dilation=1,
@@ -25,9 +26,12 @@ class Pooling1d(nn.Module):
         super().__init__()
         self.time_pooling_size = kernel_size
 
+        assert pool_type in ['avg', 'max', 'conv', 'cat'], "pool_type not in ['avg', 'max', 'conv', 'cat']"
+        self.pool_type = pool_type
+
         if stride is None:
             stride = kernel_size
-
+        
         if pool_type == "avg":
             self.pool_layer = torch.nn.AvgPool1d(
                 kernel_size,
@@ -44,21 +48,50 @@ class Pooling1d(nn.Module):
                 dilation=dilation,
                 ceil_mode=ceil_mode,
             )
+        elif pool_type == "conv":
+            assert dim is not None,"you have to precise the dimension of the ConvLayer"
+            self.conv = nn.Conv1d(
+                dim,
+                dim,
+                kernel_size=kernel_size,
+                stride=stride,
+                bias=True,
+            )
+            self.act = ACT2FN["gelu"]
 
     def forward(self, x):
         if self.time_pooling_size == 1:
             return x
+        
+        if self.pool_type == 'cat':
+            batch, frames, features = x.shape
+            if frames % self.time_pooling_size > 0:
+                tzero = torch.zeros(batch, frames % self.time_pooling_size, features).to('cuda')
+                x = torch.cat((x, tzero), dim=1)
+                batch, frames, features = x.shape
 
-        # Put the pooling axes as the last dimension for torch.nn.pool
-        x = x.transpose(-1, 1)
+            x = torch.reshape(x, [batch, int(frames / self.time_pooling_size), int(features * self.time_pooling_size)])
 
-        # Apply pooling
-        x = self.pool_layer(x)
+            return x
+        
+        elif self.pool_type == 'conv':
+            x = x.transpose(-1, 1)
+            x = self.conv(x)
+            x = x.transpose(-1, 1)
+            x = self.act(x)
+            return x
+        
+        else:
+            # Put the pooling axes as the last dimension for torch.nn.pool
+            x = x.transpose(-1, 1)
 
-        # Recover input shape
-        x = x.transpose(-1, 1)
+            # Apply pooling
+            x = self.pool_layer(x)
 
-        return x
+            # Recover input shape
+            x = x.transpose(-1, 1)
+
+            return x
 
 
 class Wav2Vec2Config(Wav2Vec2Config):
@@ -70,8 +103,27 @@ class Wav2Vec2Config(Wav2Vec2Config):
         self.pooling_type = 'max'
         self.normalize_wav2vec = False
         self.normalize_type = 'batch'
+        self.num_ff_layers = 0
+        self.reduce_ff_layer = 1
         super().__init__(**kwargs)
 
+
+class FeedForward(nn.Module):
+    def __init__(self,
+        ffn_in,
+        ffn_out,
+        activation_dropout,
+    ):
+        super().__init__()
+        self.drop = nn.Dropout(activation_dropout)
+        self.ffn = nn.Linear(ffn_in, ffn_out)
+        self.act = nn.LeakyReLU()
+
+    def forward(self, hidden_states):
+        hidden_states = self.drop(hidden_states)
+        hidden_states = self.ffn(hidden_states)
+        hidden_states = self.act(hidden_states)
+        return hidden_states
 
 class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
     config_class = Wav2Vec2Config
@@ -79,20 +131,37 @@ class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
         super().__init__(config)
         
         self.wav2vec2 = Wav2Vec2Model(config)
+        
+        if config.pooling_type == 'cat':
+            self.ffn_in = config.hidden_size * config.time_pooling_size
+        else:
+            self.ffn_in = config.hidden_size
 
         if config.normalize_wav2vec:
             if self.config.normalize_type == 'batch':
                 self.norm = nn.BatchNorm1d(config.hidden_size, eps=config.layer_norm_eps)
             else:
                 self.norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-            
+        
         self.pooling = Pooling1d(
             pool_type=config.pooling_type,
             kernel_size=config.time_pooling_size,
+            dim=config.hidden_size,
         )
-
+        
+        ff_layers_size = [int(config.hidden_size/(1 if i == 0 else config.reduce_ff_layer * i)) for i in range(config.num_ff_layers + 1)]
+        self.ff_layers = nn.ModuleList(
+            [
+                FeedForward(
+                    ff_layers_size[i],
+                    ff_layers_size[i+1],
+                    config.activation_dropout
+                ) for i in range(config.num_ff_layers)
+            ]
+        )
+        
         self.dropout = nn.Dropout(config.final_dropout)
-        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size)
+        self.lm_head = nn.Linear(ff_layers_size[-1], config.vocab_size)
 
         self.init_weights()
 
@@ -132,12 +201,15 @@ class Wav2Vec2ForCTC(Wav2Vec2ForCTC):
                 hidden_states = hidden_states.transpose(1, 2)
             else:
                 hidden_states = F.norm(hidden_states, hidden_states.shape)
-        
+                
         hidden_states = self.pooling(hidden_states)
-
+        
+        for ff_layer in self.ff_layers:
+            hidden_states = ff_layer(hidden_states)
+        
         hidden_states = self.dropout(hidden_states)
         logits = self.lm_head(hidden_states)
-
+        
         loss = None
         if labels is not None:
 
